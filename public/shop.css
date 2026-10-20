@@ -428,3 +428,33 @@ dialog[open]::backdrop { animation: fadein 320ms ease; }
 }
 .gallery { overflow: clip; }
 @media (max-width: 860px) { .gal-seal { inset-inline-end: 4px; } }
+
+/* hero: photographic ring cutout */
+.stage .ring-art { position: absolute; inset: 0; }
+.stage .sparks { pointer-events: none; }
+.hero-ring {
+  position: absolute; left: 2%; right: 2%; top: 27%;
+  filter: drop-shadow(0 34px 34px rgba(0, 0, 0, .7)) drop-shadow(0 0 40px rgba(233, 196, 106, .14));
+  animation: ringin 1700ms var(--ease-out) 250ms both, float 7s ease-in-out 2s infinite;
+}
+.hero-ring img { display: block; width: 100%; height: auto; }
+.hero-sheen {
+  position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask: url(/hero-ring.webp) center / 100% 100% no-repeat; mask: url(/hero-ring.webp) center / 100% 100% no-repeat;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 246, 218, .85) 50%, transparent 58%) 0 0 / 300% 100% no-repeat;
+  background-position: 120% 0; mix-blend-mode: screen; opacity: .8;
+  animation: ringsheen 6.5s ease-in-out 2.4s infinite;
+}
+@keyframes ringin { from { opacity: 0; transform: translateY(36px) scale(.9); filter: blur(10px) drop-shadow(0 34px 34px rgba(0, 0, 0, .7)); } }
+@keyframes ringsheen { 0% { background-position: 120% 0; } 45%, 100% { background-position: -20% 0; } }
+.stage .shadow { animation: shadowpulse 7s ease-in-out 2s infinite; }
+
+/* product cutouts sit on the arch like pieces in a display case */
+.arch img[src$=".webp"] { object-fit: contain; padding: 18% 13% 16%; filter: drop-shadow(0 18px 20px rgba(0, 0, 0, .6)) drop-shadow(0 0 18px rgba(233, 196, 106, .08)); }
+.line .arch img[src$=".webp"] { padding: 14% 10%; }
+.pd-img img[src$=".webp"] { padding: 16% 12%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-ring { animation: none; }
+  .hero-sheen { display: none; }
+}

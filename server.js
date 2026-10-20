@@ -233,40 +233,44 @@ if (getSetting('seeded') !== '1') {
   setSetting('seeded', '1');
 }
 
-/* ---------- sample photos (downloaded at image build time into ./samples) ---------- */
+/* ---------- sample photos (shipped in ./samples, Unsplash License) ---------- */
 const SAMPLE_DIR = process.env.SAMPLE_DIR || path.join(__dirname, 'samples');
+// [original seed name, v1 name, v1 file, new file, name, name_ar, description, description_ar]
 const SAMPLE_PHOTOS = [
-  ['Crescent Ring', 'a00000000000000000000001.jpg'],
-  ['Twisted Band Ring', 'a00000000000000000000002.jpg', 'Classic Band Ring', 'خاتم كلاسيكي', 'A smooth silver band with a clean, polished finish.', 'خاتم فضة ناعم بلمسة مصقولة وتصميم بسيط.'],
-  ['Lapis Signet Ring', 'a00000000000000000000003.jpg', 'Studded Ring', 'خاتم مرصّع', 'A silver ring set with a row of sparkling stones.', 'خاتم فضة مرصّع بصف من الأحجار اللامعة.'],
-  ['Fine Chain Necklace', 'a00000000000000000000004.jpg', 'Beaded Necklace', 'قلادة خرز فضية', 'Polished silver beads on a fine chain.', 'خرز فضي مصقول على سلسلة رفيعة.'],
-  ['Moon Pendant', 'a00000000000000000000005.jpg', 'Heart Pendant', 'قلادة قلب', 'A small heart pendant on a silver chain.', 'قلادة قلب صغيرة على سلسلة فضة.'],
-  ['Cuff Bracelet', 'a00000000000000000000006.jpg', 'Stone Bracelet', 'سوار مرصّع', 'A silver bracelet set with sparkling stones.', 'سوار فضة مرصّع بأحجار لامعة.'],
-  ['Drop Earrings', 'a00000000000000000000007.jpg'],
-  ['Stud Earrings Set', 'a00000000000000000000008.jpg', 'Silver Earrings Set', 'طقم أقراط فضة', 'A set of silver earrings in different styles.', 'مجموعة أقراط فضة بتصاميم مختلفة.']
+  ['Crescent Ring', 'Crescent Ring', 'a00000000000000000000001.jpg', 'b00000000000000000000001.webp', 'Sculpted Ring', 'خاتم منحوت', 'A softly sculpted band in brushed silver.', 'خاتم فضة بتصميم منحوت ناعم ولمسة مطفية.'],
+  ['Twisted Band Ring', 'Classic Band Ring', 'a00000000000000000000002.jpg', 'b00000000000000000000002.webp', 'Openwork Band Ring', 'خاتم مخرّم', 'A wide silver band with a pierced pattern.', 'خاتم فضة عريض بنقشة مخرّمة.'],
+  ['Lapis Signet Ring', 'Studded Ring', 'a00000000000000000000003.jpg', 'b00000000000000000000003.webp', 'Cluster Ring', 'خاتم عنقودي', 'Flower clusters of sparkling stones on a silver band.', 'عناقيد من الأحجار اللامعة على هيئة زهور فوق خاتم فضة.'],
+  ['Fine Chain Necklace', 'Beaded Necklace', 'a00000000000000000000004.jpg', 'b00000000000000000000004.webp', 'Tree of Life Pendant', 'قلادة شجرة الحياة', 'A round pendant with a pierced tree of life on a fine chain.', 'قلادة دائرية بنقش شجرة الحياة على سلسلة رفيعة.'],
+  ['Moon Pendant', 'Heart Pendant', 'a00000000000000000000005.jpg', 'b00000000000000000000005.webp', 'Heart Pendant', 'قلادة قلب', 'An open heart pendant set with small stones on a silver chain.', 'قلادة قلب مفتوح مرصّعة بأحجار صغيرة على سلسلة فضة.'],
+  ['Cuff Bracelet', 'Stone Bracelet', 'a00000000000000000000006.jpg', 'b00000000000000000000006.webp', 'Coil Bracelet', 'سوار ملتف', 'A coiled silver bracelet set with sparkling stones.', 'سوار فضة ملتف مرصّع بأحجار لامعة.'],
+  ['Drop Earrings', 'Drop Earrings', 'a00000000000000000000007.jpg', 'b00000000000000000000007.webp', 'Drop Earrings', 'حلق متدلي', 'Oxidized silver drops with fine openwork.', 'حلق فضة متدلي بلمسة معتّقة ونقوش مخرّمة.'],
+  ['Stud Earrings Set', 'Silver Earrings Set', 'a00000000000000000000008.jpg', 'b00000000000000000000008.webp', 'Filigree Earrings', 'أقراط مخرّمة', 'Silver filigree earrings with a floral pattern.', 'أقراط فضة مخرّمة بنقشة زهرية.']
 ];
 function installSamplePhotos() {
-  if (getSetting('samples_v1') === '1' || !fs.existsSync(SAMPLE_DIR)) return;
-  let copied = 0;
+  if (getSetting('samples_v2') === '1' || !fs.existsSync(SAMPLE_DIR)) return;
+  let copied = 0; let updated = 0;
   for (const f of fs.readdirSync(SAMPLE_DIR)) {
-    if (!/^[a-f0-9]{24}\.jpg(?![\s\S])/.test(f)) continue;
-    const src = path.join(SAMPLE_DIR, f); const dst = path.join(UPLOAD_DIR, f);
-    const buf = fs.readFileSync(src);
-    if (sniffImage(buf) !== 'jpg') continue;
+    if (!/^[a-f0-9]{24}\.(jpg|png|webp)(?![\s\S])/.test(f)) continue;
+    const buf = fs.readFileSync(path.join(SAMPLE_DIR, f));
+    if (!sniffImage(buf)) continue;
+    const dst = path.join(UPLOAD_DIR, f);
     if (!fs.existsSync(dst)) fs.writeFileSync(dst, buf);
     copied++;
   }
+  const replaced = [];
   tx(() => {
-    for (const [seed, file, name, nameAr, desc, descAr] of SAMPLE_PHOTOS) {
+    for (const [seed, v1Name, v1File, file, name, nameAr, desc, descAr] of SAMPLE_PHOTOS) {
       if (!fs.existsSync(path.join(UPLOAD_DIR, file))) continue;
-      const p = db.prepare("SELECT id FROM products WHERE name = ? AND image = ''").get(seed);
+      const p = db.prepare("SELECT id, image FROM products WHERE (name = ? AND image = '') OR (name = ? AND image = ?)").get(seed, v1Name, v1File);
       if (!p) continue;
-      if (name) db.prepare('UPDATE products SET image = ?, name = ?, name_ar = ?, description = ?, description_ar = ? WHERE id = ?').run(file, name, nameAr, desc, descAr, p.id);
-      else db.prepare('UPDATE products SET image = ? WHERE id = ?').run(file, p.id);
+      db.prepare('UPDATE products SET image = ?, name = ?, name_ar = ?, description = ?, description_ar = ? WHERE id = ?').run(file, name, nameAr, desc, descAr, p.id);
+      if (p.image) replaced.push(p.image);
+      updated++;
     }
   });
-  setSetting('samples_v1', '1');
-  console.log('[setup] sample photos installed: ' + copied);
+  for (const old of replaced) dropImageIfUnused(old);
+  setSetting('samples_v2', '1');
+  console.log('[setup] sample photos: ' + copied + ' files, ' + updated + ' products updated');
 }
 
 /* ---------- orders ---------- */
