@@ -1,0 +1,30 @@
+services:
+  shop:
+    build:
+      context: https://github.com/rabhaan2025-ui/alzahraa-shop.git#main
+    restart: unless-stopped
+    ports:
+      - "8081:3000"
+    environment:
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - DATA_DIR=/data
+      - NOINDEX=1
+    volumes:
+      - shop_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 200
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+volumes:
+  shop_data:

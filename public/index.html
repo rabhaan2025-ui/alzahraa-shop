@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alzahraa</title>
+<meta name="description" content="Silver rings and jewelry. Order online and we confirm by phone.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Hanken+Grotesk:wght@400;500;600&family=Noto+Naskh+Arabic:wght@500;600&family=Noto+Sans+Arabic:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/shop.css">
+</head>
+<body>
+<svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8FAFB"/><stop offset=".26" stop-color="#A9B3BD"/>
+      <stop offset=".5" stop-color="#EEF1F4"/><stop offset=".74" stop-color="#8994A0"/>
+      <stop offset="1" stop-color="#DCE1E6"/>
+    </linearGradient>
+    <radialGradient id="lapis" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#6A89D8"/><stop offset=".55" stop-color="#25479A"/><stop offset="1" stop-color="#14285F"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<header class="top">
+  <a class="brand" href="/" id="brand">Alzahraa</a>
+  <div class="top-actions">
+    <button class="lang" id="langBtn" type="button">عربي</button>
+    <button class="cart-btn" id="cartBtn" type="button"><span data-i18n="cart">Cart</span><span class="count" id="cartCount">0</span></button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-copy">
+    <h1 data-i18n="heroTitle">Silver rings, made to be worn every day.</h1>
+    <p data-i18n="heroSub">Order online and we'll call you to confirm and arrange delivery.</p>
+    <a class="btn" href="#shop" data-i18n="heroCta">Browse the collection</a>
+  </div>
+  <div class="hero-arch" aria-hidden="true">
+    <svg viewBox="0 0 300 360">
+      <circle cx="150" cy="232" r="84" fill="none" stroke="#6F7A86" stroke-opacity=".35" stroke-width="26" transform="translate(0 6)"/>
+      <circle cx="150" cy="232" r="84" fill="none" stroke="url(#silver)" stroke-width="22"/>
+      <path d="M92 190 A84 84 0 0 1 150 148" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="108" cy="150" rx="13" ry="22" fill="url(#silver)" transform="rotate(-28 108 150)"/>
+      <ellipse cx="192" cy="150" rx="13" ry="22" fill="url(#silver)" transform="rotate(28 192 150)"/>
+      <ellipse cx="150" cy="128" rx="48" ry="36" fill="url(#silver)"/>
+      <ellipse cx="150" cy="126" rx="37" ry="26" fill="url(#lapis)"/>
+      <ellipse cx="138" cy="117" rx="12" ry="6" fill="#fff" fill-opacity=".38" transform="rotate(-18 138 117)"/>
+    </svg>
+    <span class="sweep"></span>
+  </div>
+</section>
+
+<section id="shop" class="shop">
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden data-i18n="empty">Nothing in this category yet.</p>
+</section>
+
+<footer class="foot">
+  <span id="footBrand"></span>
+  <span data-i18n="footer">Ordered online, confirmed by phone.</span>
+  <a id="wa" class="wa" rel="noopener" target="_blank" hidden></a>
+</footer>
+
+<dialog id="pd" class="sheet" aria-labelledby="pdName">
+  <button class="x" id="pdClose" type="button" data-i18n-label="close" aria-label="Close">&times;</button>
+  <div class="pd-body">
+    <div class="arch pd-img" id="pdImg"></div>
+    <div class="pd-info">
+      <h2 id="pdName"></h2>
+      <p class="price" id="pdPrice"></p>
+      <p class="desc" id="pdDesc"></p>
+      <div id="pdSizeWrap" hidden>
+        <p class="field-label" data-i18n="size">Size</p>
+        <div class="sizes" id="pdSizes" role="radiogroup"></div>
+      </div>
+      <p class="stock" id="pdStock" role="status"></p>
+      <button class="btn" id="pdAdd" type="button" data-i18n="addToCart">Add to cart</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="cart" class="drawer" aria-labelledby="cartTitle">
+  <div class="drawer-head">
+    <h2 id="cartTitle" data-i18n="yourCart">Your cart</h2>
+    <button class="x" id="cartClose" type="button" data-i18n-label="close" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body" id="cartView"></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/shop.js" defer></script>
+</body>
+</html>

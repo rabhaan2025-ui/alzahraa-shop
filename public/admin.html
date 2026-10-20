@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin</title>
+<link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <form id="loginForm" class="panel">
+    <h1>Admin sign in</h1>
+    <label>Password<input type="password" id="pw" autocomplete="current-password" required></label>
+    <p class="err" id="loginErr" role="alert"></p>
+    <button class="btn" type="submit">Sign in</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="bar">
+    <strong id="shopTitle">Admin</strong>
+    <nav id="nav">
+      <button type="button" data-view="orders">Orders<span id="newBadge" class="badge" hidden>0</span></button>
+      <button type="button" data-view="products">Products</button>
+      <button type="button" data-view="settings">Settings</button>
+    </nav>
+    <button type="button" id="logout" class="link">Sign out</button>
+  </header>
+  <main id="main"></main>
+</div>
+
+<dialog id="dlg"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/admin.js" defer></script>
+</body>
+</html>
