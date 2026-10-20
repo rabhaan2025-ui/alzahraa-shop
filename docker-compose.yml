@@ -3,14 +3,24 @@ services:
     build:
       context: https://github.com/rabhaan2025-ui/alzahraa-shop.git#main
     restart: unless-stopped
-    ports:
-      - "8081:3000"
     environment:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - DATA_DIR=/data
       - NOINDEX=1
+      - TRUST_PROXY=1
+      - COOKIE_SECURE=1
     volumes:
       - shop_data:/data
+    networks:
+      - root_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=root_default"
+      - "traefik.http.routers.alzahraa-shop.rule=Host(`shop.72-62-58-79.sslip.io`)"
+      - "traefik.http.routers.alzahraa-shop.entrypoints=websecure"
+      - "traefik.http.routers.alzahraa-shop.tls=true"
+      - "traefik.http.routers.alzahraa-shop.tls.certresolver=le"
+      - "traefik.http.services.alzahraa-shop.loadbalancer.server.port=3000"
     read_only: true
     tmpfs:
       - /tmp
@@ -26,5 +36,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+networks:
+  root_default:
+    external: true
 volumes:
   shop_data:
