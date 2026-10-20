@@ -3,7 +3,7 @@
 
   var T = {
     en: {
-      skip: 'Skip to the collection', cart: 'Cart', close: 'Close', all: 'All',
+      skip: 'Skip to the collection', viewCart: 'View cart', cart: 'Cart', close: 'Close', all: 'All',
       eyebrow: 'Zahra Gallery · Karbala',
       galEyebrow: 'Zahra Gallery', galTitle: 'Visit our gallery in Karbala',
       galText: 'See the pieces in person, try ring sizes, and ask us anything. Or follow new arrivals on Instagram.',
@@ -39,7 +39,7 @@
       err_generic: 'Something went wrong. Please try again.'
     },
     ar: {
-      skip: 'انتقل إلى المجموعة', cart: 'السلة', close: 'إغلاق', all: 'الكل',
+      skip: 'انتقل إلى المجموعة', viewCart: 'عرض السلة', cart: 'السلة', close: 'إغلاق', all: 'الكل',
       eyebrow: 'معرض الزهراء · كربلاء',
       galEyebrow: 'معرض الزهراء', galTitle: 'زوروا معرضنا في كربلاء',
       galText: 'شاهد القطع عن قرب، جرّب مقاس خاتمك، واسألنا عن أي شيء. أو تابع الجديد على إنستغرام.',
@@ -108,12 +108,15 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return map[c]; });
   }
   function money(cents) {
-    var cur = shop.settings.currency || 'USD';
-    try {
-      return new Intl.NumberFormat(lang === 'ar' ? 'ar-u-nu-latn' : 'en-US', {
-        style: 'currency', currency: cur, minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2
-      }).format(cents / 100);
-    } catch (e) { return (cents / 100).toLocaleString() + ' ' + cur; }
+    var cur = String(shop.settings.currency || 'USD').toUpperCase();
+    var opts = { minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 };
+    var num;
+    try { num = new Intl.NumberFormat(lang === 'ar' ? 'ar-u-nu-latn' : 'en-US', opts).format(cents / 100); } catch (e) { num = String(cents / 100); }
+    var sym = { USD: '$', EUR: '\u20ac', GBP: '\u00a3' }[cur];
+    if (cur === 'IQD') sym = lang === 'ar' ? '\u062f.\u0639' : 'IQD';
+    if (!sym) sym = cur;
+    if (lang === 'ar') return num + '\u00a0' + sym;
+    return sym.length === 1 ? sym + num : sym + '\u00a0' + num;
   }
   function api(method, url, body) {
     return fetch(url, {
@@ -295,6 +298,18 @@
     var n = cart.reduce(function (a, i) { return a + i.qty; }, 0);
     gid('cartCount').textContent = n;
     gid('cartCount').classList.toggle('has', n > 0);
+    updateMbar(n);
+  }
+  function updateMbar(n) {
+    var bar = gid('mbar');
+    if (n == null) n = cart.reduce(function (a, i) { return a + i.qty; }, 0);
+    var show = n > 0 && loaded;
+    if (show && bar.hidden) { bar.hidden = false; void bar.offsetWidth; }
+    bar.classList.toggle('on', show);
+    if (!show) bar.hidden = true;
+    document.body.classList.toggle('has-mbar', show);
+    gid('mbarCount').textContent = n;
+    gid('mbarTotal').textContent = show ? money(cartTotal()) : '';
   }
   function cartQty(id) { return cart.reduce(function (a, i) { return a + (i.id === id ? i.qty : 0); }, 0); }
   function reconcile() {
@@ -422,12 +437,13 @@
     if (s.whatsapp) { wa.hidden = false; wa.href = 'https://wa.me/' + encodeURIComponent(s.whatsapp); wa.textContent = t('whatsapp'); } else { wa.hidden = true; }
     splitTitle(); buildMarquee();
     renderTabs(); renderGrid();
+    updateMbar();
     if (gid('cart').open) renderCart();
     if (gid('pd').open) renderProduct();
   }
   function loadShop() {
     return api('GET', '/api/shop').then(function (r) {
-      shop = r; loaded = true; reconcile(); applyLang();
+      shop = r; loaded = true; reconcile(); applyLang(); updateMbar();
     }).catch(function () { toast(t('err_network')); });
   }
 
@@ -488,6 +504,28 @@
   });
   gid('pdClose').addEventListener('click', function () { gid('pd').close(); });
   gid('cartBtn').addEventListener('click', openCart);
+  gid('mbar').addEventListener('click', openCart);
+
+  /* swipe the product sheet down to close it on phones */
+  (function () {
+    var pd = gid('pd'); var startY = 0; var dy = 0; var dragging = false;
+    var phone = window.matchMedia('(max-width: 760px)');
+    pd.addEventListener('touchstart', function (e) {
+      if (!phone.matches || pd.scrollTop > 0) return;
+      dragging = true; dy = 0; startY = e.touches[0].clientY; pd.classList.add('dragging');
+    }, { passive: true });
+    pd.addEventListener('touchmove', function (e) {
+      if (!dragging) return;
+      dy = Math.max(0, e.touches[0].clientY - startY);
+      pd.style.transform = 'translateY(' + dy + 'px)';
+    }, { passive: true });
+    pd.addEventListener('touchend', function () {
+      if (!dragging) return;
+      dragging = false; pd.classList.remove('dragging');
+      if (dy > 110) { pd.close(); }
+      pd.style.transform = '';
+    });
+  })();
   gid('cartClose').addEventListener('click', function () { gid('cart').close(); });
   ['pd', 'cart'].forEach(function (id) {
     var d = gid(id);

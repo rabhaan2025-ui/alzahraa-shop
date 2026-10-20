@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#070707">
 <title>Alzahraa</title>
 <meta name="description" content="Alzahraa silver jewelry, Karbala. Order online and we confirm by phone.">
@@ -118,7 +118,6 @@
 <section class="gallery" aria-labelledby="galTitle">
   <div class="gal-media rv">
     <img src="/uploads/b00000000000000000000009.jpg" alt="" loading="lazy" decoding="async" id="galImg">
-    <img class="gal-seal" src="/logo-lg.webp" alt="" width="132" height="132" loading="lazy">
   </div>
   <div class="gal-copy rv">
     <p class="eyebrow" data-i18n="galEyebrow">Zahra Gallery</p>
@@ -157,6 +156,7 @@
 </footer>
 
 <dialog id="pd" class="sheet" aria-labelledby="pdName">
+  <span class="grab" id="pdGrab" aria-hidden="true"></span>
   <button class="x" id="pdClose" type="button" data-i18n-label="close" aria-label="Close">&times;</button>
   <div class="pd-body">
     <div class="arch pd-img" id="pdImg"></div>
@@ -183,6 +183,11 @@
   <div class="drawer-body" id="cartView"></div>
 </dialog>
 
+<button class="mbar" id="mbar" type="button" hidden>
+  <span class="mbar-count" id="mbarCount">0</span>
+  <span class="mbar-label" data-i18n="viewCart">View cart</span>
+  <span class="mbar-total" id="mbarTotal"></span>
+</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/shop.js" defer></script>
 </body>
