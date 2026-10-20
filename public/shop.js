@@ -5,9 +5,14 @@
     en: {
       skip: 'Skip to the collection', viewCart: 'View cart', cart: 'Cart', close: 'Close', all: 'All',
       eyebrow: 'Zahra Gallery · Karbala',
-      galEyebrow: 'Zahra Gallery', galTitle: 'Visit our gallery in Karbala',
-      galText: 'See the pieces in person, try ring sizes, and ask us anything. Or follow new arrivals on Instagram.',
-      galMap: 'Get directions',
+      menu: 'Menu', navCollection: 'Collection', navAbout: 'About us', navContact: 'Contact us', currency: 'Currency',
+      aboutEyebrow: 'About us', aboutTitle: 'Zahra Gallery, Karbala', followIg: 'Follow us on Instagram',
+      contactEyebrow: 'Contact us', contactTitle: 'We are here to help',
+      visitT: 'Visit the gallery', directions: 'Get directions', hoursT: 'Opening hours',
+      callT: 'Call us', waT: 'WhatsApp', waCta: 'Send a message', igT: 'Instagram',
+      country: 'Country', chooseCountry: 'Choose your country', subtotal: 'Subtotal', shipping: 'Shipping', free: 'Free',
+      convNote: 'Prices in {cur} are converted from {base}. We confirm the final price when we call you.',
+      err_invalid_country: 'Choose your country.',
       heroTitle: 'Silver rings, made to be worn every day.',
       heroSub: "Order online and we'll call you to confirm and arrange delivery.",
       heroCta: 'Browse the collection', howLink: 'How ordering works',
@@ -41,9 +46,14 @@
     ar: {
       skip: 'انتقل إلى المجموعة', viewCart: 'عرض السلة', cart: 'السلة', close: 'إغلاق', all: 'الكل',
       eyebrow: 'معرض الزهراء · كربلاء',
-      galEyebrow: 'معرض الزهراء', galTitle: 'زوروا معرضنا في كربلاء',
-      galText: 'شاهد القطع عن قرب، جرّب مقاس خاتمك، واسألنا عن أي شيء. أو تابع الجديد على إنستغرام.',
-      galMap: 'الموقع على الخريطة',
+      menu: 'القائمة', navCollection: 'المجموعة', navAbout: 'من نحن', navContact: 'اتصل بنا', currency: 'العملة',
+      aboutEyebrow: 'من نحن', aboutTitle: 'معرض الزهراء، كربلاء', followIg: 'تابعنا على إنستغرام',
+      contactEyebrow: 'اتصل بنا', contactTitle: 'نحن هنا لمساعدتك',
+      visitT: 'زوروا المعرض', directions: 'الموقع على الخريطة', hoursT: 'أوقات الدوام',
+      callT: 'اتصل بنا', waT: 'واتساب', waCta: 'أرسل رسالة', igT: 'إنستغرام',
+      country: 'الدولة', chooseCountry: 'اختر دولتك', subtotal: 'المجموع الفرعي', shipping: 'الشحن', free: 'مجاني',
+      convNote: 'الأسعار بـ {cur} محوّلة من {base}. نؤكد السعر النهائي عند الاتصال بك.',
+      err_invalid_country: 'اختر دولتك.',
       heroTitle: 'خواتم فضة، صُنعت لتُلبس كل يوم.',
       heroSub: 'اطلب أونلاين وسنتصل بك لتأكيد الطلب وترتيب التوصيل.',
       heroCta: 'تصفح المجموعة', howLink: 'كيف تطلب',
@@ -75,7 +85,6 @@
       err_generic: 'حدث خطأ. حاول مرة أخرى.'
     }
   };
-  var CATS = ['rings', 'necklaces', 'bracelets', 'earrings', 'sets'];
 
   var gid = function (id) { return document.getElementById(id); };
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -85,6 +94,8 @@
   var loaded = false;
   var cart = loadCart();
   var activeCat = 'all';
+  var curCode = (function () { try { return localStorage.getItem('az_cur') || ''; } catch (e) { return ''; } })();
+  var countryId = 0;
   var view = 'cart';
   var draft = { name: '', phone: '', city: '', address: '', notes: '' };
   var doneInfo = null;
@@ -107,16 +118,30 @@
     var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return map[c]; });
   }
+  function currencies() { return (shop.settings && shop.settings.currencies && shop.settings.currencies.length) ? shop.settings.currencies : [{ code: shop.settings.currency || 'USD', rate: 1, round: 0 }]; }
+  function curInfo() {
+    var list = currencies();
+    for (var i = 0; i < list.length; i++) if (list[i].code === curCode) return list[i];
+    return list[0];
+  }
   function money(cents) {
-    var cur = String(shop.settings.currency || 'USD').toUpperCase();
-    var opts = { minimumFractionDigits: cents % 100 === 0 ? 0 : 2, maximumFractionDigits: 2 };
+    var c = curInfo();
+    var cur = String(c.code || 'USD').toUpperCase();
+    var v = cents / 100 * c.rate;
+    if (c.round > 0) v = Math.round(v / c.round) * c.round; else v = Math.round(v * 100) / 100;
+    var frac = (c.round >= 1 || Math.round(v) === v) ? 0 : 2;
     var num;
-    try { num = new Intl.NumberFormat(lang === 'ar' ? 'ar-u-nu-latn' : 'en-US', opts).format(cents / 100); } catch (e) { num = String(cents / 100); }
-    var sym = { USD: '$', EUR: '\u20ac', GBP: '\u00a3' }[cur];
-    if (cur === 'IQD') sym = lang === 'ar' ? '\u062f.\u0639' : 'IQD';
+    try { num = new Intl.NumberFormat(lang === 'ar' ? 'ar-u-nu-latn' : 'en-US', { minimumFractionDigits: frac, maximumFractionDigits: frac }).format(v); } catch (e) { num = String(v); }
+    var sym = { USD: '$', EUR: '€', GBP: '£', TRY: '₺' }[cur];
+    if (cur === 'IQD') sym = lang === 'ar' ? 'د.ع' : 'IQD';
     if (!sym) sym = cur;
-    if (lang === 'ar') return num + '\u00a0' + sym;
-    return sym.length === 1 ? sym + num : sym + '\u00a0' + num;
+    if (lang === 'ar') return num + ' ' + sym;
+    return sym.length === 1 ? sym + num : num + ' ' + sym;
+  }
+  function catName(slug) {
+    var list = shop.categories || [];
+    for (var i = 0; i < list.length; i++) if (list[i].slug === slug) return (lang === 'ar' && list[i].name_ar) ? list[i].name_ar : list[i].name;
+    return slug;
   }
   function api(method, url, body) {
     return fetch(url, {
@@ -167,7 +192,7 @@
   }
 
   function buildMarquee() {
-    var items = CATS.map(function (c) { return t('cat_' + c); }).concat([t('marquee')]);
+    var items = (shop.categories || []).map(function (c) { return catName(c.slug); }).concat([t('marquee')]);
     var one = items.map(function (s) { return esc(s) + '<i></i>'; }).join('');
     gid('marquee').innerHTML = '<span>' + one + '</span><span>' + one + '</span>';
   }
@@ -237,11 +262,11 @@
   function renderTabs() {
     var present = {};
     shop.products.forEach(function (p) { present[p.category] = 1; });
-    var cats = ['all'].concat(CATS.filter(function (c) { return present[c]; }));
+    var cats = ['all'].concat((shop.categories || []).map(function (c) { return c.slug; }).filter(function (c) { return present[c]; }));
     if (cats.indexOf(activeCat) < 0) activeCat = 'all';
     gid('tabs').innerHTML = cats.map(function (c) {
       return '<button type="button" role="tab" class="tab' + (c === activeCat ? ' on' : '') + '" aria-selected="' + (c === activeCat) + '" data-cat="' + c + '">' +
-        esc(c === 'all' ? t('all') : t('cat_' + c)) + '</button>';
+        esc(c === 'all' ? t('all') : catName(c)) + '</button>';
     }).join('');
     requestAnimationFrame(moveInk);
   }
@@ -270,7 +295,7 @@
     var p = byId(openProductId);
     if (!p) return;
     gid('pdImg').innerHTML = img(p);
-    gid('pdCat').textContent = t('cat_' + p.category);
+    gid('pdCat').textContent = catName(p.category);
     gid('pdName').textContent = pname(p);
     gid('pdPrice').textContent = money(p.price_cents);
     gid('pdDesc').textContent = pdesc(p);
@@ -365,9 +390,10 @@
         '<form class="form" id="orderForm" novalidate>' +
         field('name', 'text', 'name', 'name') + field('phone', 'tel', 'phone', 'tel') +
         field('city', 'text', 'city', 'address-level2') + field('address', 'text', 'address', 'street-address') +
+        countryField() +
         '<label>' + esc(t('notes')) + '<textarea name="notes" maxlength="500">' + esc(draft.notes) + '</textarea></label>' +
-        '<div class="total"><span>' + esc(t('total')) + '</span><strong>' + esc(money(cartTotal())) + '</strong></div>' +
-        '<p class="note">' + esc(t('payNote')) + '</p>' +
+        totalsHtml(true) +
+        '<p class="note">' + esc(t('payNote')) + '</p>' + convNote() +
         '<button type="submit" class="btn block">' + esc(t('placeOrder')) + '</button>' +
         '<button type="button" class="btn ghost block" data-act="back">' + esc(t('back')) + '</button></form>';
       return;
@@ -381,9 +407,41 @@
         '<div class="line-end"><div class="stepper"><button type="button" data-act="dec" data-i="' + idx + '" aria-label="' + esc(t('qtyDown')) + '">&minus;</button>' +
         '<span>' + i.qty + '</span><button type="button" data-act="inc" data-i="' + idx + '" aria-label="' + esc(t('qtyUp')) + '">+</button></div></div></div>';
     }).join('') + '</div>' +
-      '<div class="total"><span>' + esc(t('total')) + '</span><strong>' + esc(money(cartTotal())) + '</strong></div>' +
+      totalsHtml(false) + convNote() +
       '<div class="stack"><button type="button" class="btn block" data-act="checkout">' + esc(t('checkout')) + '</button>' +
       '<button type="button" class="btn ghost block" data-act="close">' + esc(t('keepShopping')) + '</button></div>';
+  }
+  function chosenCountry() {
+    var list = shop.countries || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === countryId) return list[i];
+    return list.length === 1 ? list[0] : null;
+  }
+  function countryField() {
+    var list = shop.countries || [];
+    if (!list.length) return '';
+    if (list.length === 1) countryId = list[0].id;
+    return '<label>' + esc(t('country')) + '<select name="country" required>' +
+      (list.length > 1 ? '<option value="">' + esc(t('chooseCountry')) + '</option>' : '') +
+      list.map(function (c) {
+        return '<option value="' + c.id + '"' + (c.id === countryId ? ' selected' : '') + '>' + esc(lang === 'ar' && c.name_ar ? c.name_ar : c.name) +
+          (c.fee_cents ? ' (+' + esc(money(c.fee_cents)) + ')' : '') + '</option>';
+      }).join('') + '</select></label>';
+  }
+  function totalsHtml(withShipping) {
+    var sub = cartTotal();
+    var c = withShipping ? chosenCountry() : null;
+    if (!withShipping || !(shop.countries || []).length) {
+      return '<div class="total"><span>' + esc(t('total')) + '</span><strong>' + esc(money(sub)) + '</strong></div>';
+    }
+    var fee = c ? c.fee_cents : 0;
+    return '<div class="sum"><span>' + esc(t('subtotal')) + '</span><span>' + esc(money(sub)) + '</span></div>' +
+      '<div class="sum"><span>' + esc(t('shipping')) + '</span><span>' + (c ? (fee ? esc(money(fee)) : esc(t('free'))) : '\u2014') + '</span></div>' +
+      '<div class="total"><span>' + esc(t('total')) + '</span><strong>' + esc(money(sub + fee)) + '</strong></div>';
+  }
+  function convNote() {
+    var c = curInfo(); var base = currencies()[0];
+    if (c.code === base.code) return '';
+    return '<p class="note conv">' + esc(t('convNote', { cur: c.code, base: base.code })) + '</p>';
   }
   function field(key, type, labelKey, autocomplete) {
     return '<label>' + esc(t(labelKey)) + '<input name="' + key + '" type="' + type + '" value="' + esc(draft[key]) + '" autocomplete="' + autocomplete + '"' +
@@ -408,6 +466,7 @@
     btn.disabled = true; btn.textContent = t('sending');
     api('POST', '/api/orders', {
       name: draft.name, phone: draft.phone, city: draft.city, address: draft.address, notes: draft.notes,
+      country_id: countryId, currency: curInfo().code,
       items: cart.map(function (i) { return { id: i.id, qty: i.qty, size: i.size }; })
     }).then(function (r) {
       doneInfo = { code: r.code, phone: draft.phone };
@@ -428,16 +487,67 @@
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-label]'), function (el) { el.setAttribute('aria-label', t(el.getAttribute('data-i18n-label'))); });
-    gid('langBtn').textContent = lang === 'ar' ? 'English' : 'عربي';
+    gid('langBtn').textContent = gid('langBtn2').textContent = lang === 'ar' ? 'English' : 'عربي';
     var s = shop.settings;
     var name = (lang === 'ar' && s.shop_name_ar) ? s.shop_name_ar : (s.shop_name || 'Alzahraa');
     gid('brand').textContent = name; gid('footMark').textContent = name;
     gid('footBrand').textContent = '© ' + name; document.title = name;
     var wa = gid('wa');
     if (s.whatsapp) { wa.hidden = false; wa.href = 'https://wa.me/' + encodeURIComponent(s.whatsapp); wa.textContent = t('whatsapp'); } else { wa.hidden = true; }
+    var ig = s.instagram ? 'https://www.instagram.com/' + encodeURIComponent(s.instagram) + '/' : '';
+    gid('footIg').hidden = !ig; if (ig) gid('footIg').href = ig;
+    gid('aboutText').textContent = (lang === 'ar' ? s.about_ar : s.about_en) || '';
+    gid('aboutIg').hidden = !ig; if (ig) { gid('aboutIg').href = ig; gid('aboutIg').textContent = t('followIg') + ' @' + s.instagram; }
+    renderContact(s, ig);
+    renderCurrencies();
     splitTitle(); buildMarquee();
     renderTabs(); renderGrid();
     updateMbar();
+    if (gid('cart').open) renderCart();
+    if (gid('pd').open) renderProduct();
+  }
+  function renderContact(s, ig) {
+    var cards = [];
+    var addr = lang === 'ar' ? (s.contact_address_ar || s.contact_address) : s.contact_address;
+    var hours = lang === 'ar' ? (s.contact_hours_ar || s.contact_hours) : s.contact_hours;
+    var icon = function (d) { return '<svg class="c-ico" viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>'; };
+    if (addr || s.map_url) {
+      cards.push('<div class="c-card rv">' + icon('<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/>') +
+        '<h3>' + esc(t('visitT')) + '</h3>' + (addr ? '<p>' + esc(addr) + '</p>' : '') +
+        (hours ? '<p class="mute">' + esc(t('hoursT')) + ': ' + esc(hours) + '</p>' : '') +
+        (s.map_url ? '<a class="c-link" href="' + esc(s.map_url) + '" target="_blank" rel="noopener">' + esc(t('directions')) + '</a>' : '') + '</div>');
+    }
+    if (s.contact_phone) {
+      cards.push('<div class="c-card rv">' + icon('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"/>') +
+        '<h3>' + esc(t('callT')) + '</h3><p dir="ltr" class="ltr">' + esc(s.contact_phone) + '</p>' +
+        '<a class="c-link" href="tel:' + esc(s.contact_phone.replace(/[^0-9+]/g, '')) + '">' + esc(t('callT')) + '</a></div>');
+    }
+    if (s.whatsapp) {
+      cards.push('<div class="c-card rv">' + icon('<path d="M4 20l1.3-4A8 8 0 1 1 8.5 19Z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1a4 4 0 0 1-2-2l1-1-1-2Z"/>') +
+        '<h3>' + esc(t('waT')) + '</h3><p dir="ltr" class="ltr">+' + esc(s.whatsapp) + '</p>' +
+        '<a class="c-link" href="https://wa.me/' + encodeURIComponent(s.whatsapp) + '" target="_blank" rel="noopener">' + esc(t('waCta')) + '</a></div>');
+    }
+    if (ig) {
+      cards.push('<div class="c-card rv">' + icon('<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.6"/><circle cx="16.8" cy="7.2" r=".6"/>') +
+        '<h3>' + esc(t('igT')) + '</h3><p dir="ltr" class="ltr">@' + esc(s.instagram) + '</p>' +
+        '<a class="c-link" href="' + esc(ig) + '" target="_blank" rel="noopener">' + esc(t('followIg')) + '</a></div>');
+    }
+    var grid = gid('contactGrid');
+    grid.innerHTML = cards.join('');
+    grid.className = 'contact-grid n' + cards.length;
+    Array.prototype.forEach.call(grid.children, reveal);
+    gid('contact').hidden = !cards.length;
+  }
+  function renderCurrencies() {
+    var list = currencies();
+    if (!list.some(function (c) { return c.code === curCode; })) curCode = list[0].code;
+    var html = list.map(function (c) { return '<option value="' + esc(c.code) + '"' + (c.code === curCode ? ' selected' : '') + '>' + esc(c.code) + '</option>'; }).join('');
+    ['curSel', 'curSel2'].forEach(function (id) { var el = gid(id); el.innerHTML = html; el.parentNode.hidden = list.length < 2; });
+  }
+  function setCurrency(code) {
+    curCode = code;
+    try { localStorage.setItem('az_cur', code); } catch (e) { /* storage blocked */ }
+    renderCurrencies(); renderGrid(); updateMbar();
     if (gid('cart').open) renderCart();
     if (gid('pd').open) renderProduct();
   }
@@ -449,11 +559,22 @@
 
   /* ----- ambient motion: header state, hero parallax ----- */
   var stageInner = gid('stageInner');
-  var px = 0; var py = 0; var sy = 0; var ticking = false;
+  var px = 0; var py = 0; var sy = 0; var ticking = false; var heroVisible = true;
+  if ('IntersectionObserver' in window) {
+    // pause looping animations that are off screen so scrolling stays smooth
+    var pauser = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        en.target.classList.toggle('paused', !en.isIntersecting);
+        if (en.target.classList.contains('hero')) heroVisible = en.isIntersecting;
+      });
+    }, { rootMargin: '80px 0px' });
+    pauser.observe(document.querySelector('.hero'));
+    pauser.observe(document.querySelector('.marquee'));
+  }
   function paint() {
     ticking = false;
     gid('top').classList.toggle('scrolled', window.scrollY > 24);
-    if (reduced) return;
+    if (reduced || !heroVisible) return;
     var lift = Math.min(sy, 900) * 0.12;
     stageInner.style.transform = 'translate3d(0,' + lift.toFixed(1) + 'px,0) rotateX(' + (-py * 6).toFixed(2) + 'deg) rotateY(' + (px * 8).toFixed(2) + 'deg)';
   }
@@ -465,24 +586,29 @@
       px = (e.clientX / window.innerWidth - 0.5); py = (e.clientY / window.innerHeight - 0.5); schedule();
     }, { passive: true });
   }
-  if (reduced) {
-    var svg = document.querySelector('.ring-art');
-    if (svg && svg.pauseAnimations) svg.pauseAnimations();
-  }
   Array.prototype.forEach.call(document.querySelectorAll('.rv'), reveal);
-  var galImg = gid('galImg');
-  if (galImg) {
-    var galFail = function () { galImg.parentNode.classList.add('noimg'); galImg.removeAttribute('src'); };
-    galImg.addEventListener('error', galFail);
-    if (galImg.complete && galImg.naturalWidth === 0 && galImg.getAttribute('src')) galFail();
-  }
+  var aboutImg = gid('aboutImg');
+  var aboutFail = function () { aboutImg.parentNode.classList.add('noimg'); aboutImg.removeAttribute('src'); };
+  aboutImg.addEventListener('error', aboutFail);
+  if (aboutImg.complete && aboutImg.naturalWidth === 0 && aboutImg.getAttribute('src')) aboutFail();
 
   /* ----- events ----- */
-  gid('langBtn').addEventListener('click', function () {
+  function toggleLang() {
     lang = lang === 'ar' ? 'en' : 'ar';
     try { localStorage.setItem('az_lang', lang); } catch (e) { /* storage blocked */ }
     applyLang();
-  });
+  }
+  gid('langBtn').addEventListener('click', toggleLang);
+  gid('langBtn2').addEventListener('click', function () { toggleLang(); setMenu(false); });
+  ['curSel', 'curSel2'].forEach(function (id) { gid(id).addEventListener('change', function () { setCurrency(this.value); }); });
+  function setMenu(open) {
+    gid('top').classList.toggle('menu-open', open);
+    gid('menuBtn').setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('menu-lock', open);
+  }
+  gid('menuBtn').addEventListener('click', function () { setMenu(!gid('top').classList.contains('menu-open')); });
+  gid('mainNav').addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
   gid('tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[data-cat]');
     if (b) { activeCat = b.getAttribute('data-cat'); renderTabs(); renderGrid(); }
@@ -553,6 +679,12 @@
     }
     saveCart(); renderCart();
   });
+  gid('cartView').addEventListener('change', function (e) {
+    if (e.target.name === 'country') {
+      var f = gid('orderForm'); if (f) readDraft(f);
+      countryId = Number(e.target.value) || 0; renderCart();
+    }
+  });
   gid('cartView').addEventListener('submit', function (e) {
     e.preventDefault();
     var form = e.target;
@@ -561,6 +693,7 @@
     for (var k = 0; k < check.length; k++) {
       if (draft[check[k][0]].length < check[k][1]) { banner = t('err_' + check[k][2]); renderCart(); return; }
     }
+    if ((shop.countries || []).length && !chosenCountry()) { banner = t('err_invalid_country'); renderCart(); return; }
     if (!/^\+?[0-9\u0660-\u0669\u06F0-\u06F9][0-9\u0660-\u0669\u06F0-\u06F9 \-]{6,18}(?![\s\S])/.test(draft.phone)) { banner = t('err_invalid_phone'); renderCart(); return; }
     banner = '';
     submitOrder(form);

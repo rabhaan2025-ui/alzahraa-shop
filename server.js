@@ -13,7 +13,10 @@ const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 const COOKIE_SECURE = process.env.COOKIE_SECURE === '1';
 const NOINDEX = process.env.NOINDEX !== '0';
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
-const CATEGORIES = ['rings', 'necklaces', 'bracelets', 'earrings', 'sets'];
+const DEFAULT_CATEGORIES = [
+  ['rings', 'Rings', 'خواتم'], ['necklaces', 'Necklaces', 'قلائد'], ['bracelets', 'Bracelets', 'أساور'],
+  ['earrings', 'Earrings', 'أقراط'], ['sets', 'Sets', 'أطقم']
+];
 const STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -44,13 +47,64 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 CREATE INDEX IF NOT EXISTS idx_items_order ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status, id);
+CREATE TABLE IF NOT EXISTS categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL, name_ar TEXT NOT NULL DEFAULT '', sort INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS countries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, name_ar TEXT NOT NULL DEFAULT '',
+  fee_cents INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0
+);
 `);
+function addColumn(table, col, def) {
+  const cols = db.prepare('PRAGMA table_info(' + table + ')').all().map((c) => c.name);
+  if (!cols.includes(col)) db.exec('ALTER TABLE ' + table + ' ADD COLUMN ' + col + ' ' + def);
+}
+addColumn('orders', 'country', "TEXT NOT NULL DEFAULT ''");
+addColumn('orders', 'shipping_cents', 'INTEGER NOT NULL DEFAULT 0');
+addColumn('orders', 'display_currency', "TEXT NOT NULL DEFAULT ''");
+addColumn('orders', 'display_total', 'REAL NOT NULL DEFAULT 0');
 
 /* ---------- settings, admin credentials ---------- */
 const getSetting = (k) => { const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(k); return r ? r.value : null; };
 const setSetting = (k, v) => db.prepare('INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(k, String(v));
-const defaults = { shop_name: 'Alzahraa', shop_name_ar: 'الزهراء', currency: 'USD', whatsapp: '' };
+const defaults = {
+  shop_name: 'Alzahraa', shop_name_ar: 'الزهراء', currency: 'USD', whatsapp: '',
+  about_en: 'Zahra Gallery (Alzahraa) is a silver jewelry gallery in Karbala. We offer rings, necklaces, bracelets and earrings for everyday wear and for gifts, and we are happy to help you choose the right piece and size.',
+  about_ar: 'معرض الزهراء للفضيات في كربلاء. نقدّم الخواتم والقلائد والأساور والأقراط للاستخدام اليومي وللهدايا، ويسعدنا مساعدتك في اختيار القطعة والمقاس المناسبين.',
+  contact_phone: '', contact_address: 'Karbala, Iraq', contact_address_ar: 'كربلاء، العراق',
+  contact_hours: '', contact_hours_ar: '', instagram: 'alzahraa.silvers',
+  map_url: 'https://maps.app.goo.gl/u9JoKbTdjx3zCLnAA'
+};
 for (const [k, v] of Object.entries(defaults)) db.prepare('INSERT OR IGNORE INTO settings(key, value) VALUES(?, ?)').run(k, v);
+if (getSetting('currencies') === null) {
+  // extra display currencies: 1 unit of the base currency = rate units; round = price step in that currency
+  const extra = getSetting('currency') === 'USD' ? [{ code: 'IQD', rate: 1310, round: 250 }] : [];
+  setSetting('currencies', JSON.stringify(extra));
+}
+if (db.prepare('SELECT COUNT(*) AS n FROM categories').get().n === 0) {
+  const ins = db.prepare('INSERT INTO categories(slug, name, name_ar, sort) VALUES(?,?,?,?)');
+  DEFAULT_CATEGORIES.forEach((c, i) => ins.run(c[0], c[1], c[2], i));
+}
+if (getSetting('countries_seeded') !== '1') {
+  if (db.prepare('SELECT COUNT(*) AS n FROM countries').get().n === 0) {
+    db.prepare('INSERT INTO countries(name, name_ar, fee_cents, sort) VALUES(?,?,?,?)').run('Iraq', 'العراق', 0, 0);
+  }
+  setSetting('countries_seeded', '1');
+}
+const listCategories = () => db.prepare('SELECT id, slug, name, name_ar, sort FROM categories ORDER BY sort, id').all();
+const listCountries = () => db.prepare('SELECT id, name, name_ar, fee_cents, sort FROM countries ORDER BY sort, id').all();
+function readCurrencies() {
+  let extra = [];
+  try { extra = JSON.parse(getSetting('currencies') || '[]'); } catch (_) { extra = []; }
+  const base = getSetting('currency') || 'USD';
+  return [{ code: base, rate: 1, round: 0 }].concat(extra.filter((c) => c && c.code !== base));
+}
+function displayTotal(cents, cur) {
+  let v = cents / 100 * cur.rate;
+  if (cur.round > 0) v = Math.round(v / cur.round) * cur.round; else v = Math.round(v * 100) / 100;
+  return v;
+}
 
 function hashPassword(pw) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -194,7 +248,7 @@ const toAdmin = (p) => Object.assign(toPublic(p), { active: p.active });
 function cleanProduct(b) {
   const name = clean(b.name, 120);
   if (!name) throw bad('invalid_name', 'Name is required');
-  if (!CATEGORIES.includes(b.category)) throw bad('invalid_category', 'Pick a category');
+  if (!db.prepare('SELECT 1 FROM categories WHERE slug = ?').get(String(b.category || ''))) throw bad('invalid_category', 'Pick a category');
   const price = Number(b.price);
   if (!Number.isFinite(price) || price < 0 || price > 1e9) throw bad('invalid_price', 'Enter a valid price');
   const stock = Number.parseInt(b.stock, 10);
@@ -289,7 +343,7 @@ function cleanOrder(b) {
   for (const i of items) {
     if (!Number.isInteger(i.id) || i.id < 1 || !Number.isInteger(i.qty) || i.qty < 1 || i.qty > 20) throw bad('invalid_items', 'Invalid cart');
   }
-  return { name, phone, city, address, notes: clean(b.notes, 500), items };
+  return { name, phone, city, address, notes: clean(b.notes, 500), items, countryId: Number(b.country_id) || 0, currency: String(b.currency || '').toUpperCase().slice(0, 3) };
 }
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -325,20 +379,28 @@ function createOrder(o) {
     }
     let total = 0;
     for (const l of merged.values()) total += l.p.price_cents * l.qty;
+    let country = ''; let shipping = 0;
+    if (db.prepare('SELECT COUNT(*) AS n FROM countries').get().n > 0) {
+      const c = db.prepare('SELECT * FROM countries WHERE id = ?').get(o.countryId);
+      if (!c) throw bad('invalid_country', 'Choose your country');
+      country = c.name; shipping = c.fee_cents;
+    }
+    total += shipping;
+    const cur = readCurrencies().find((c) => c.code === o.currency) || readCurrencies()[0];
 
     let orderId = 0; let code = '';
     for (let attempt = 0; attempt < 6 && !orderId; attempt++) {
       code = newCode();
       try {
-        orderId = Number(db.prepare('INSERT INTO orders(code, name, phone, city, address, notes, total_cents) VALUES(?,?,?,?,?,?,?)')
-          .run(code, o.name, o.phone, o.city, o.address, o.notes, total).lastInsertRowid);
+        orderId = Number(db.prepare('INSERT INTO orders(code, name, phone, city, address, notes, total_cents, country, shipping_cents, display_currency, display_total) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+          .run(code, o.name, o.phone, o.city, o.address, o.notes, total, country, shipping, cur.code, displayTotal(total, cur)).lastInsertRowid);
       } catch (e) { if (!/UNIQUE/i.test(String(e.message))) throw e; }
     }
     if (!orderId) throw new HttpError(500, 'generic', 'Could not create order');
     const insItem = db.prepare('INSERT INTO order_items(order_id, product_id, name, price_cents, qty, size) VALUES(?,?,?,?,?,?)');
     const dec = db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?');
     for (const l of merged.values()) { insItem.run(orderId, l.p.id, l.p.name, l.p.price_cents, l.qty, l.size); dec.run(l.qty, l.p.id); }
-    return { code, total_cents: total };
+    return { code, total_cents: total, shipping_cents: shipping, display_currency: cur.code, display_total: displayTotal(total, cur) };
   });
 }
 
@@ -367,6 +429,7 @@ function setOrderStatus(id, status) {
 function publicSettings() {
   const out = {};
   for (const k of Object.keys(defaults)) out[k] = getSetting(k) || '';
+  out.currencies = readCurrencies();
   return out;
 }
 
@@ -421,7 +484,7 @@ async function handle(req, res) {
 
   if (m === 'GET' && p === '/api/shop') {
     const rows = db.prepare('SELECT * FROM products WHERE active = 1 ORDER BY id DESC').all();
-    return json(res, 200, { settings: publicSettings(), products: rows.map(toPublic) });
+    return json(res, 200, { settings: publicSettings(), categories: listCategories(), countries: listCountries(), products: rows.map(toPublic) });
   }
 
   if (m === 'POST' && p === '/api/orders') {
@@ -443,7 +506,112 @@ async function handle(req, res) {
   if (!p.startsWith('/api/admin/')) throw new HttpError(404, 'not_found', 'Not found');
   if (!isAdmin(req)) throw new HttpError(401, 'unauthorized', 'Sign in required');
 
-  if (m === 'GET' && p === '/api/admin/me') return json(res, 200, { ok: true, settings: publicSettings(), categories: CATEGORIES, statuses: STATUSES });
+  if (m === 'GET' && p === '/api/admin/me') return json(res, 200, { ok: true, settings: publicSettings(), categories: listCategories(), countries: listCountries(), statuses: STATUSES });
+
+  /* ----- categories ----- */
+  if (m === 'GET' && p === '/api/admin/categories') {
+    const counts = {};
+    for (const r of db.prepare('SELECT category, COUNT(*) AS n FROM products GROUP BY category').all()) counts[r.category] = r.n;
+    return json(res, 200, { categories: listCategories().map((c) => Object.assign(c, { products: counts[c.slug] || 0 })) });
+  }
+  if (m === 'POST' && p === '/api/admin/categories') {
+    const b = await readJson(req);
+    const name = clean(b.name, 60);
+    if (!name) throw bad('invalid_name', 'Category name is required');
+    let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+(?![\s\S])/g, '').slice(0, 40) || 'category';
+    let n = 1; const baseSlug = slug;
+    while (db.prepare('SELECT 1 FROM categories WHERE slug = ?').get(slug)) slug = baseSlug + '-' + (++n);
+    const sort = (db.prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM categories').get().m || 0) + 1;
+    const r = db.prepare('INSERT INTO categories(slug, name, name_ar, sort) VALUES(?,?,?,?)').run(slug, name, clean(b.name_ar, 60), sort);
+    return json(res, 201, { id: Number(r.lastInsertRowid), slug });
+  }
+  const cm = /^\/api\/admin\/categories\/(\d+)(?![\s\S])/.exec(p);
+  if (cm) {
+    const id = Number(cm[1]);
+    const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    if (!cat) throw new HttpError(404, 'not_found', 'Category not found');
+    if (m === 'PUT') {
+      const b = await readJson(req);
+      const name = clean(b.name, 60);
+      if (!name) throw bad('invalid_name', 'Category name is required');
+      const sort = Number.isInteger(Number(b.sort)) ? Number(b.sort) : cat.sort;
+      db.prepare('UPDATE categories SET name = ?, name_ar = ?, sort = ? WHERE id = ?').run(name, clean(b.name_ar, 60), sort, id);
+      return json(res, 200, { ok: true });
+    }
+    if (m === 'DELETE') {
+      const used = db.prepare('SELECT COUNT(*) AS n FROM products WHERE category = ?').get(cat.slug).n;
+      if (used) throw new HttpError(409, 'in_use', 'This category still has ' + used + ' product(s). Move them to another category or delete them first.');
+      db.prepare('DELETE FROM categories WHERE id = ?').run(id);
+      return json(res, 200, { ok: true });
+    }
+  }
+
+  /* ----- shipping countries ----- */
+  if (m === 'GET' && p === '/api/admin/countries') return json(res, 200, { countries: listCountries() });
+  const cleanCountry = (b) => {
+    const name = clean(b.name, 60);
+    if (!name) throw bad('invalid_name', 'Country name is required');
+    const fee = Number(b.fee);
+    if (!Number.isFinite(fee) || fee < 0 || fee > 1e9) throw bad('invalid_fee', 'Enter a valid shipping fee (0 for free)');
+    return { name, name_ar: clean(b.name_ar, 60), fee_cents: Math.round(fee * 100) };
+  };
+  if (m === 'POST' && p === '/api/admin/countries') {
+    const c = cleanCountry(await readJson(req));
+    const sort = (db.prepare('SELECT COALESCE(MAX(sort), 0) AS m FROM countries').get().m || 0) + 1;
+    const r = db.prepare('INSERT INTO countries(name, name_ar, fee_cents, sort) VALUES(?,?,?,?)').run(c.name, c.name_ar, c.fee_cents, sort);
+    return json(res, 201, { id: Number(r.lastInsertRowid) });
+  }
+  const km = /^\/api\/admin\/countries\/(\d+)(?![\s\S])/.exec(p);
+  if (km) {
+    const id = Number(km[1]);
+    if (!db.prepare('SELECT 1 FROM countries WHERE id = ?').get(id)) throw new HttpError(404, 'not_found', 'Country not found');
+    if (m === 'PUT') {
+      const c = cleanCountry(await readJson(req));
+      db.prepare('UPDATE countries SET name = ?, name_ar = ?, fee_cents = ? WHERE id = ?').run(c.name, c.name_ar, c.fee_cents, id);
+      return json(res, 200, { ok: true });
+    }
+    if (m === 'DELETE') {
+      db.prepare('DELETE FROM countries WHERE id = ?').run(id);
+      return json(res, 200, { ok: true });
+    }
+  }
+
+  /* ----- display currencies ----- */
+  if (m === 'PUT' && p === '/api/admin/currencies') {
+    const b = await readJson(req);
+    if (!Array.isArray(b.currencies) || b.currencies.length > 12) throw bad('invalid_currencies', 'Invalid currency list');
+    const base = getSetting('currency');
+    const seen = new Set([base]); const out = [];
+    for (const c of b.currencies) {
+      const code = String(c && c.code || '').trim().toUpperCase();
+      if (!/^[A-Z]{3}(?![\s\S])/.test(code)) throw bad('invalid_currency', 'Currency codes are 3 letters, e.g. IQD');
+      if (seen.has(code)) continue;
+      const rate = Number(c.rate); const round = Number(c.round || 0);
+      if (!(rate > 0 && rate < 1e7)) throw bad('invalid_rate', 'Enter how many ' + code + ' equal 1 ' + base);
+      if (!(round >= 0 && round <= 1e6)) throw bad('invalid_round', 'Rounding must be 0 or more');
+      seen.add(code); out.push({ code, rate, round });
+    }
+    setSetting('currencies', JSON.stringify(out));
+    return json(res, 200, { settings: publicSettings() });
+  }
+
+  /* ----- about and contact content ----- */
+  if (m === 'PUT' && p === '/api/admin/content') {
+    const b = await readJson(req);
+    const longText = (v) => String(v == null ? '' : v).replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ').trim().slice(0, 2000);
+    const mapUrl = String(b.map_url || '').trim();
+    if (mapUrl && !/^https:\/\/[^\s<>"]{4,400}(?![\s\S])/.test(mapUrl)) throw bad('invalid_url', 'The map link must start with https://');
+    const ig = String(b.instagram || '').trim().replace(/^@/, '');
+    if (ig && !/^[A-Za-z0-9._]{1,30}(?![\s\S])/.test(ig)) throw bad('invalid_instagram', 'Instagram username can only contain letters, numbers, dots and underscores');
+    const phone = normDigits(clean(b.contact_phone, 24));
+    if (phone && !PHONE_RE.test(phone)) throw bad('invalid_phone', 'Enter a valid phone number');
+    setSetting('about_en', longText(b.about_en)); setSetting('about_ar', longText(b.about_ar));
+    setSetting('contact_phone', phone);
+    setSetting('contact_address', clean(b.contact_address, 200)); setSetting('contact_address_ar', clean(b.contact_address_ar, 200));
+    setSetting('contact_hours', clean(b.contact_hours, 120)); setSetting('contact_hours_ar', clean(b.contact_hours_ar, 120));
+    setSetting('instagram', ig); setSetting('map_url', mapUrl);
+    return json(res, 200, { settings: publicSettings() });
+  }
 
   if (m === 'GET' && p === '/api/admin/stats') {
     const counts = {};

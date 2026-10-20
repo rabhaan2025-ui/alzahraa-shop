@@ -4,7 +4,8 @@
   var gid = function (id) { return document.getElementById(id); };
   var LABEL = { new: 'New', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
   var STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'];
-  var CATS = { rings: 'Rings', necklaces: 'Necklaces', bracelets: 'Bracelets', earrings: 'Earrings', sets: 'Sets' };
+  var CATS = {};
+  function setCats(list) { CATS = {}; (list || []).forEach(function (c) { CATS[c.slug] = c.name; }); }
   var settings = {};
   var view = 'orders';
   var filter = 'all';
@@ -44,7 +45,7 @@
   function showLogin() { gid('app').hidden = true; gid('login').hidden = false; gid('pw').focus(); }
   function boot() {
     api('GET', '/api/admin/me').then(function (r) {
-      settings = r.settings;
+      settings = r.settings; setCats(r.categories);
       gid('login').hidden = true; gid('app').hidden = false;
       gid('shopTitle').textContent = (settings.shop_name || 'Shop') + ' admin';
       go(view); poll();
@@ -69,7 +70,8 @@
   function go(v) {
     view = v;
     Array.prototype.forEach.call(gid('nav').children, function (b) { b.classList.toggle('on', b.getAttribute('data-view') === v); });
-    if (v === 'orders') loadOrders(); else if (v === 'products') loadProducts(); else renderSettings();
+    if (v === 'orders') loadOrders(); else if (v === 'products') loadProducts();
+    else if (v === 'categories') loadCategories(); else if (v === 'shipping') loadCountries(); else renderSettings();
   }
 
   /* ----- orders ----- */
@@ -123,6 +125,12 @@
     var pr = e.target.closest('[data-edit]');
     if (pr) openProduct(pr.getAttribute('data-edit'));
     if (e.target.closest('#addProduct')) openProduct('new');
+    var ce = e.target.closest('[data-cat-edit]');
+    if (ce) openCategory(ce.getAttribute('data-cat-edit'));
+    if (e.target.closest('#addCat')) openCategory('new');
+    var ke = e.target.closest('[data-country-edit]');
+    if (ke) openCountry(ke.getAttribute('data-country-edit'));
+    if (e.target.closest('#addCountry')) openCountry('new');
   });
 
   var dlg = gid('dlg');
@@ -143,9 +151,12 @@
         '<label>Status<select id="stSel">' + STATUSES.map(function (s) { return '<option value="' + s + '"' + (s === o.status ? ' selected' : '') + '>' + LABEL[s] + '</option>'; }).join('') + '</select></label>' +
         '<div class="cols"><div class="kv"><b>Customer</b>' + esc(o.name) + '</div>' +
         '<div class="kv"><b>Phone</b><span><a href="tel:' + esc(o.phone) + '">' + esc(o.phone) + '</a> · <a href="https://wa.me/' + esc(digits) + '" target="_blank" rel="noopener">WhatsApp</a></span></div>' +
-        '<div class="kv"><b>City</b>' + esc(o.city) + '</div><div class="kv"><b>Address</b>' + esc(o.address) + '</div></div>' +
+        '<div class="kv"><b>Country</b>' + esc(o.country || '\u2014') + '</div><div class="kv"><b>City</b>' + esc(o.city) + '</div>' +
+        '<div class="kv"><b>Address</b>' + esc(o.address) + '</div>' +
+        '<div class="kv"><b>Customer viewed prices in</b>' + esc(o.display_currency ? o.display_currency + ' (' + Number(o.display_total).toLocaleString() + ' ' + o.display_currency + ')' : '\u2014') + '</div></div>' +
         (o.notes ? '<div class="kv"><b>Customer notes</b>' + esc(o.notes) + '</div>' : '') +
         '<div class="wrap"><table class="slim"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead><tbody>' + items + '</tbody></table></div>' +
+        (o.shipping_cents ? '<div class="row mute">Shipping: ' + esc(money(o.shipping_cents)) + '</div>' : '') +
         '<div class="row"><b>Total: ' + esc(money(o.total_cents)) + '</b></div>' + closeRow() + '</div>';
       dlg.showModal();
       gid('stSel').addEventListener('change', function () {
@@ -182,7 +193,7 @@
   }
 
   function openProduct(id) {
-    var p = id === 'new' ? { name: '', name_ar: '', description: '', description_ar: '', category: 'rings', price_cents: 0, stock: 1, sizes: [], image: '', active: 1 }
+    var p = id === 'new' ? { name: '', name_ar: '', description: '', description_ar: '', category: Object.keys(CATS)[0] || '', price_cents: 0, stock: 1, sizes: [], image: '', active: 1 }
       : products.filter(function (x) { return String(x.id) === String(id); })[0];
     if (!p) return;
     var image = p.image;
@@ -231,15 +242,162 @@
     });
   }
 
+  /* ----- categories ----- */
+  var categories = [];
+  function loadCategories() {
+    api('GET', '/api/admin/categories').then(function (r) {
+      categories = r.categories;
+      setCats(categories);
+      var rows = categories.map(function (c) {
+        return '<tr class="click" data-cat-edit="' + c.id + '"><td><b>' + esc(c.name) + '</b>' + (c.name_ar ? '<br><span class="mute">' + esc(c.name_ar) + '</span>' : '') + '</td>' +
+          '<td>' + c.products + '</td><td>' + c.sort + '</td></tr>';
+      }).join('');
+      gid('main').innerHTML = '<div class="head"><h2>Categories</h2><button type="button" class="btn" id="addCat">Add category</button></div>' +
+        '<p class="mute">These are the category tabs in the shop. Empty categories are hidden from customers.</p>' +
+        (categories.length ? '<div class="wrap"><table class="slim"><thead><tr><th>Name</th><th>Products</th><th>Order</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+          : '<div class="wrap"><p class="empty">No categories yet. Add one before adding products.</p></div>');
+    }).catch(function (e) { toast(e.message); });
+  }
+  function openCategory(id) {
+    var c = id === 'new' ? { name: '', name_ar: '', sort: '' } : categories.filter(function (x) { return String(x.id) === String(id); })[0];
+    if (!c) return;
+    dlg.innerHTML = '<form class="dlg" id="cf"><h3>' + (id === 'new' ? 'Add category' : 'Edit category') + '</h3>' +
+      '<div class="cols"><label>Name (English)<input name="name" required maxlength="60" value="' + esc(c.name) + '"></label>' +
+      '<label>Name (Arabic)<input name="name_ar" dir="rtl" maxlength="60" value="' + esc(c.name_ar) + '"></label></div>' +
+      (id === 'new' ? '' : '<label>Order in the shop (lower shows first)<input name="sort" type="number" step="1" value="' + esc(c.sort) + '"></label>') +
+      '<p class="err" id="cErr" role="alert"></p><div class="row">' +
+      (id === 'new' ? '' : '<button type="button" class="btn danger" id="cDel">Delete</button>') +
+      '<button type="button" class="btn sec" data-close>Cancel</button><button type="submit" class="btn">Save</button></div></form>';
+    dlg.showModal();
+    if (id !== 'new') {
+      gid('cDel').addEventListener('click', function () {
+        if (!confirm('Delete the category "' + c.name + '"?')) return;
+        api('DELETE', '/api/admin/categories/' + c.id).then(function () { dlg.close(); toast('Category deleted'); loadCategories(); })
+          .catch(function (e) { gid('cErr').textContent = e.message; });
+      });
+    }
+    gid('cf').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var f = e.target.elements;
+      var body = { name: f.name.value, name_ar: f.name_ar.value };
+      if (f.sort) body.sort = f.sort.value;
+      (id === 'new' ? api('POST', '/api/admin/categories', body) : api('PUT', '/api/admin/categories/' + c.id, body))
+        .then(function () { dlg.close(); toast('Saved'); loadCategories(); })
+        .catch(function (err) { gid('cErr').textContent = err.message; });
+    });
+  }
+
+  /* ----- shipping countries ----- */
+  var countries = [];
+  function loadCountries() {
+    api('GET', '/api/admin/countries').then(function (r) {
+      countries = r.countries;
+      var rows = countries.map(function (c) {
+        return '<tr class="click" data-country-edit="' + c.id + '"><td><b>' + esc(c.name) + '</b>' + (c.name_ar ? '<br><span class="mute">' + esc(c.name_ar) + '</span>' : '') + '</td>' +
+          '<td>' + (c.fee_cents ? esc(money(c.fee_cents)) : 'Free') + '</td></tr>';
+      }).join('');
+      gid('main').innerHTML = '<div class="head"><h2>Shipping countries</h2><button type="button" class="btn" id="addCountry">Add country</button></div>' +
+        '<p class="mute">Customers choose one of these at checkout, and its shipping fee is added to the order. With no countries, checkout does not ask for one.</p>' +
+        (countries.length ? '<div class="wrap"><table class="slim"><thead><tr><th>Country</th><th>Shipping fee</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+          : '<div class="wrap"><p class="empty">No shipping countries.</p></div>');
+    }).catch(function (e) { toast(e.message); });
+  }
+  function openCountry(id) {
+    var c = id === 'new' ? { name: '', name_ar: '', fee_cents: 0 } : countries.filter(function (x) { return String(x.id) === String(id); })[0];
+    if (!c) return;
+    dlg.innerHTML = '<form class="dlg" id="kf"><h3>' + (id === 'new' ? 'Add shipping country' : 'Edit shipping country') + '</h3>' +
+      '<div class="cols"><label>Country (English)<input name="name" required maxlength="60" value="' + esc(c.name) + '"></label>' +
+      '<label>Country (Arabic)<input name="name_ar" dir="rtl" maxlength="60" value="' + esc(c.name_ar) + '"></label></div>' +
+      '<label>Shipping fee in ' + esc(settings.currency) + ' (0 for free)<input name="fee" type="number" min="0" step="0.01" required value="' + (c.fee_cents / 100) + '"></label>' +
+      '<p class="err" id="kErr" role="alert"></p><div class="row">' +
+      (id === 'new' ? '' : '<button type="button" class="btn danger" id="kDel">Delete</button>') +
+      '<button type="button" class="btn sec" data-close>Cancel</button><button type="submit" class="btn">Save</button></div></form>';
+    dlg.showModal();
+    if (id !== 'new') {
+      gid('kDel').addEventListener('click', function () {
+        if (!confirm('Stop shipping to ' + c.name + '? Past orders keep their country.')) return;
+        api('DELETE', '/api/admin/countries/' + c.id).then(function () { dlg.close(); toast('Country removed'); loadCountries(); })
+          .catch(function (e) { gid('kErr').textContent = e.message; });
+      });
+    }
+    gid('kf').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var f = e.target.elements;
+      var body = { name: f.name.value, name_ar: f.name_ar.value, fee: f.fee.value };
+      (id === 'new' ? api('POST', '/api/admin/countries', body) : api('PUT', '/api/admin/countries/' + c.id, body))
+        .then(function () { dlg.close(); toast('Saved'); loadCountries(); })
+        .catch(function (err) { gid('kErr').textContent = err.message; });
+    });
+  }
+
+  /* ----- currencies and page content (settings) ----- */
+  function currencyRows() {
+    var extra = (settings.currencies || []).slice(1);
+    return extra.map(function (c, i) { return curRow(c, i); }).join('');
+  }
+  function curRow(c, i) {
+    return '<div class="cur-row" data-i="' + i + '"><input name="code" maxlength="3" placeholder="IQD" value="' + esc(c.code) + '" aria-label="Currency code">' +
+      '<input name="rate" type="number" min="0" step="any" placeholder="1310" value="' + esc(c.rate) + '" aria-label="Rate">' +
+      '<input name="round" type="number" min="0" step="any" placeholder="250" value="' + esc(c.round || '') + '" aria-label="Round to">' +
+      '<button type="button" class="link" data-cur-rm>Remove</button></div>';
+  }
+  function settingsExtra() {
+    var s = settings;
+    return '<form class="card" id="curf"><h3>Currencies customers can choose</h3>' +
+      '<p class="mute">Prices are entered in ' + esc(s.currency) + '. For each extra currency, enter how much 1 ' + esc(s.currency) +
+      ' is worth in it, and optionally a step to round prices to (for example 250 for IQD). Customers pick a currency at the top of the shop. You still confirm the final price by phone.</p>' +
+      '<div class="cur-head"><span>Code</span><span>1 ' + esc(s.currency) + ' =</span><span>Round to</span><span></span></div>' +
+      '<div id="curRows">' + currencyRows() + '</div>' +
+      '<div class="row slim-row"><button type="button" class="btn sec sm" id="curAdd">Add currency</button></div>' +
+      '<p class="err" id="curErr" role="alert"></p><div class="row"><button class="btn" type="submit">Save currencies</button></div></form>' +
+      '<form class="card" id="cof"><h3>About us and Contact us</h3>' +
+      '<label>About us (English)<textarea name="about_en" maxlength="2000">' + esc(s.about_en) + '</textarea></label>' +
+      '<label>About us (Arabic)<textarea name="about_ar" dir="rtl" maxlength="2000">' + esc(s.about_ar) + '</textarea></label>' +
+      '<label>Phone number shown on the site<input name="contact_phone" inputmode="tel" value="' + esc(s.contact_phone) + '"></label>' +
+      '<div class="cols"><label>Address (English)<input name="contact_address" maxlength="200" value="' + esc(s.contact_address) + '"></label>' +
+      '<label>Address (Arabic)<input name="contact_address_ar" dir="rtl" maxlength="200" value="' + esc(s.contact_address_ar) + '"></label></div>' +
+      '<div class="cols"><label>Opening hours (English)<input name="contact_hours" maxlength="120" placeholder="Sat to Thu, 10am to 10pm" value="' + esc(s.contact_hours) + '"></label>' +
+      '<label>Opening hours (Arabic)<input name="contact_hours_ar" dir="rtl" maxlength="120" value="' + esc(s.contact_hours_ar) + '"></label></div>' +
+      '<div class="cols"><label>Instagram username<input name="instagram" maxlength="31" value="' + esc(s.instagram) + '"></label>' +
+      '<label>Google Maps link<input name="map_url" maxlength="400" placeholder="https://maps.app.goo.gl/..." value="' + esc(s.map_url) + '"></label></div>' +
+      '<p class="err" id="coErr" role="alert"></p><div class="row"><button class="btn" type="submit">Save page content</button></div></form>';
+  }
+  function bindSettingsExtra() {
+    var rowsBox = gid('curRows');
+    gid('curAdd').addEventListener('click', function () {
+      rowsBox.insertAdjacentHTML('beforeend', curRow({ code: '', rate: '', round: '' }, rowsBox.children.length));
+    });
+    rowsBox.addEventListener('click', function (e) { var b = e.target.closest('[data-cur-rm]'); if (b) b.parentNode.remove(); });
+    gid('curf').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var list = Array.prototype.map.call(rowsBox.querySelectorAll('.cur-row'), function (r) {
+        return { code: r.querySelector('[name=code]').value, rate: r.querySelector('[name=rate]').value, round: r.querySelector('[name=round]').value || 0 };
+      }).filter(function (c) { return c.code.trim(); });
+      api('PUT', '/api/admin/currencies', { currencies: list })
+        .then(function (r) { settings = r.settings; gid('curErr').textContent = ''; toast('Currencies saved'); })
+        .catch(function (err) { gid('curErr').textContent = err.message; });
+    });
+    gid('cof').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var f = e.target.elements; var body = {};
+      ['about_en', 'about_ar', 'contact_phone', 'contact_address', 'contact_address_ar', 'contact_hours', 'contact_hours_ar', 'instagram', 'map_url']
+        .forEach(function (k) { body[k] = f[k].value; });
+      api('PUT', '/api/admin/content', body)
+        .then(function (r) { settings = r.settings; gid('coErr').textContent = ''; toast('Page content saved'); })
+        .catch(function (err) { gid('coErr').textContent = err.message; });
+    });
+  }
+
   /* ----- settings ----- */
   function renderSettings() {
     gid('main').innerHTML = '<div class="head"><h2>Settings</h2></div><div class="settings">' +
       '<form class="card" id="sf"><h3>Shop</h3>' +
       '<label>Shop name (English)<input name="shop_name" required maxlength="60" value="' + esc(settings.shop_name) + '"></label>' +
       '<label>Shop name (Arabic)<input name="shop_name_ar" dir="rtl" maxlength="60" value="' + esc(settings.shop_name_ar) + '"></label>' +
-      '<label>Currency code (e.g. USD, IQD)<input name="currency" required maxlength="3" value="' + esc(settings.currency) + '"></label>' +
+      '<label>Main currency, the one you enter prices in (e.g. USD, IQD). Changing it does not convert existing prices.<input name="currency" required maxlength="3" value="' + esc(settings.currency) + '"></label>' +
       '<label>WhatsApp number with country code, digits only (optional)<input name="whatsapp" inputmode="tel" placeholder="9647701234567" value="' + esc(settings.whatsapp) + '"></label>' +
       '<p class="err" id="sErr" role="alert"></p><div class="row"><button class="btn" type="submit">Save settings</button></div></form>' +
+      settingsExtra() +
       '<form class="card" id="pwf"><h3>Change admin password</h3>' +
       '<label>Current password<input type="password" name="current" autocomplete="current-password" required></label>' +
       '<label>New password (10+ characters)<input type="password" name="next" autocomplete="new-password" minlength="10" required></label>' +
@@ -248,9 +406,10 @@
       e.preventDefault();
       var f = e.target.elements;
       api('PUT', '/api/admin/settings', { shop_name: f.shop_name.value, shop_name_ar: f.shop_name_ar.value, currency: f.currency.value, whatsapp: f.whatsapp.value })
-        .then(function (r) { settings = r.settings; gid('shopTitle').textContent = settings.shop_name + ' admin'; toast('Settings saved'); gid('sErr').textContent = ''; })
+        .then(function (r) { settings = r.settings; gid('shopTitle').textContent = settings.shop_name + ' admin'; toast('Settings saved'); gid('sErr').textContent = ''; renderSettings(); })
         .catch(function (err) { gid('sErr').textContent = err.message; });
     });
+    bindSettingsExtra();
     gid('pwf').addEventListener('submit', function (e) {
       e.preventDefault();
       var f = e.target.elements;
