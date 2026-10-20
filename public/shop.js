@@ -3,10 +3,17 @@
 
   var T = {
     en: {
-      cart: 'Cart', close: 'Close', all: 'All',
+      skip: 'Skip to the collection', cart: 'Cart', close: 'Close', all: 'All',
+      eyebrow: 'Fine silver jewelry',
       heroTitle: 'Silver rings, made to be worn every day.',
       heroSub: "Order online and we'll call you to confirm and arrange delivery.",
-      heroCta: 'Browse the collection',
+      heroCta: 'Browse the collection', howLink: 'How ordering works',
+      marquee: 'Made to be worn every day',
+      collectionEyebrow: 'The collection', collectionTitle: 'Pieces in silver',
+      howEyebrow: 'Ordering', howTitle: 'Three quiet steps',
+      step1t: 'Choose', step1: 'Pick your piece and, for rings, your size.',
+      step2t: 'Order', step2: 'Leave your name, phone and address. No payment now.',
+      step3t: 'We call you', step3: 'We confirm by phone and arrange delivery.',
       cat_rings: 'Rings', cat_necklaces: 'Necklaces', cat_bracelets: 'Bracelets', cat_earrings: 'Earrings', cat_sets: 'Sets',
       empty: 'Nothing in this category yet.',
       addToCart: 'Add to cart', size: 'Size', chooseSize: 'Choose a size first.',
@@ -29,10 +36,17 @@
       err_generic: 'Something went wrong. Please try again.'
     },
     ar: {
-      cart: 'السلة', close: 'إغلاق', all: 'الكل',
+      skip: 'انتقل إلى المجموعة', cart: 'السلة', close: 'إغلاق', all: 'الكل',
+      eyebrow: 'مجوهرات فضة راقية',
       heroTitle: 'خواتم فضة، صُنعت لتُلبس كل يوم.',
       heroSub: 'اطلب أونلاين وسنتصل بك لتأكيد الطلب وترتيب التوصيل.',
-      heroCta: 'تصفح المجموعة',
+      heroCta: 'تصفح المجموعة', howLink: 'كيف تطلب',
+      marquee: 'صُنعت لتُلبس كل يوم',
+      collectionEyebrow: 'المجموعة', collectionTitle: 'قطع من الفضة',
+      howEyebrow: 'الطلب', howTitle: 'ثلاث خطوات بسيطة',
+      step1t: 'اختر', step1: 'اختر قطعتك، ومقاسك إن كانت خاتماً.',
+      step2t: 'اطلب', step2: 'اترك اسمك وهاتفك وعنوانك. لا دفع الآن.',
+      step3t: 'نتصل بك', step3: 'نؤكد الطلب بالهاتف ونرتب التوصيل.',
       cat_rings: 'خواتم', cat_necklaces: 'قلائد', cat_bracelets: 'أساور', cat_earrings: 'أقراط', cat_sets: 'أطقم',
       empty: 'لا توجد منتجات في هذا القسم بعد.',
       addToCart: 'أضف إلى السلة', size: 'المقاس', chooseSize: 'اختر المقاس أولاً.',
@@ -58,8 +72,11 @@
   var CATS = ['rings', 'necklaces', 'bracelets', 'earrings', 'sets'];
 
   var gid = function (id) { return document.getElementById(id); };
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var finePointer = window.matchMedia('(pointer: fine)').matches;
   var lang = pickLang();
   var shop = { settings: {}, products: [] };
+  var loaded = false;
   var cart = loadCart();
   var activeCat = 'all';
   var view = 'cart';
@@ -108,7 +125,69 @@
     var el = gid('toast');
     el.textContent = msg; el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
+  }
+
+  /* ----- motion helpers ----- */
+  var revealer = null;
+  if (!reduced && 'IntersectionObserver' in window) {
+    revealer = new IntersectionObserver(function (entries) {
+      var batch = entries.filter(function (en) { return en.isIntersecting; });
+      batch.forEach(function (en, i) {
+        var el = en.target;
+        if (el.classList.contains('tile')) el.style.transitionDelay = (i * 70) + 'ms';
+        el.classList.add('in');
+        revealer.unobserve(el);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+  }
+  function reveal(el) {
+    if (revealer) revealer.observe(el); else el.classList.add('in');
+  }
+
+  function splitTitle() {
+    var h = gid('heroTitle');
+    var words = t('heroTitle').split(' ');
+    h.setAttribute('aria-label', t('heroTitle'));
+    h.innerHTML = words.map(function (w) {
+      return '<span class="w" aria-hidden="true"><span>' + esc(w) + '</span></span>';
+    }).join(' ');
+    Array.prototype.forEach.call(h.querySelectorAll('.w > span'), function (s, i) {
+      s.style.animationDelay = (280 + i * 90) + 'ms';
+    });
+  }
+
+  function buildMarquee() {
+    var items = CATS.map(function (c) { return t('cat_' + c); }).concat([t('marquee')]);
+    var one = items.map(function (s) { return esc(s) + '<i></i>'; }).join('');
+    gid('marquee').innerHTML = '<span>' + one + '</span><span>' + one + '</span>';
+  }
+
+  function moveInk() {
+    var on = gid('tabs').querySelector('.tab.on');
+    var ink = gid('tabInk');
+    if (!on) return;
+    var wrap = gid('tabs').parentNode.getBoundingClientRect();
+    var r = on.getBoundingClientRect();
+    ink.style.transform = 'translateX(' + (r.left - wrap.left) + 'px) translateY(' + (r.bottom - wrap.top - 1) + 'px) scaleX(' + r.width + ')';
+  }
+
+  function flyToCart(fromEl) {
+    var target = gid('cartCount');
+    function bump() { target.classList.remove('bump'); void target.offsetWidth; target.classList.add('bump'); }
+    if (reduced || !fromEl || !fromEl.animate) { bump(); return; }
+    var a = fromEl.getBoundingClientRect(); var b = target.getBoundingClientRect();
+    var x0 = a.left + a.width / 2; var y0 = a.top + a.height / 2;
+    var x1 = b.left + b.width / 2; var y1 = b.top + b.height / 2;
+    var dot = document.createElement('span');
+    dot.className = 'fly';
+    document.body.appendChild(dot);
+    var mx = (x0 + x1) / 2; var my = Math.min(y0, y1) - 120;
+    dot.animate([
+      { transform: 'translate(' + x0 + 'px,' + y0 + 'px) scale(1)', opacity: 1 },
+      { transform: 'translate(' + mx + 'px,' + my + 'px) scale(1.25)', opacity: 1, offset: 0.55 },
+      { transform: 'translate(' + x1 + 'px,' + y1 + 'px) scale(.4)', opacity: 0.2 }
+    ], { duration: 720, easing: 'cubic-bezier(.5,0,.2,1)' }).onfinish = function () { dot.remove(); bump(); };
   }
 
   /* ----- products ----- */
@@ -119,28 +198,32 @@
   function pname(p) { return lang === 'ar' && p.name_ar ? p.name_ar : p.name; }
   function pdesc(p) { return lang === 'ar' && p.description_ar ? p.description_ar : p.description; }
   function art(cat) {
-    var s = '<svg viewBox="0 0 200 240" aria-hidden="true">';
+    var s = '<svg viewBox="0 0 200 250" aria-hidden="true"><ellipse cx="100" cy="226" rx="46" ry="5" fill="#000" fill-opacity=".45"/>';
     if (cat === 'necklaces') {
-      s += '<path d="M36 56 C 58 176, 142 176, 164 56" fill="none" stroke="url(#silver)" stroke-width="5" stroke-linecap="round"/>' +
-        '<circle cx="100" cy="150" r="15" fill="url(#silver)"/><circle cx="100" cy="150" r="7" fill="url(#lapis)"/>';
+      s += '<path d="M40 60 C 60 182, 140 182, 160 60" fill="none" stroke="url(#silver)" stroke-width="3.5" stroke-linecap="round"/>' +
+        '<path d="M100 154 L100 160" stroke="url(#silver)" stroke-width="3"/>' +
+        '<path d="M100 160 C 86 170, 88 190, 100 198 C 112 190, 114 170, 100 160 Z" fill="url(#silver)"/><circle cx="100" cy="182" r="6" fill="url(#lapis)"/>';
     } else if (cat === 'bracelets') {
-      s += '<ellipse cx="100" cy="132" rx="62" ry="32" fill="none" stroke="url(#silver)" stroke-width="13"/>' +
-        '<ellipse cx="100" cy="124" rx="62" ry="32" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="2"/>';
+      s += '<ellipse cx="100" cy="146" rx="64" ry="34" fill="none" stroke="#3A414B" stroke-width="14" transform="translate(0 4)"/>' +
+        '<ellipse cx="100" cy="142" rx="64" ry="34" fill="none" stroke="url(#silver)" stroke-width="12"/>' +
+        '<ellipse cx="100" cy="134" rx="62" ry="31" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.5"/>';
     } else if (cat === 'earrings') {
-      var drop = '<circle cx="70" cy="76" r="6" fill="url(#silver)"/><path d="M70 82 L70 108" stroke="url(#silver)" stroke-width="3"/>' +
-        '<path d="M70 108 C 50 138, 58 170, 70 178 C 82 170, 90 138, 70 108 Z" fill="url(#silver)"/>';
-      s += drop + '<g transform="translate(60 0)">' + drop + '</g>';
+      var drop = '<circle cx="72" cy="80" r="6" fill="url(#silver)"/><path d="M72 86 L72 112" stroke="url(#silver)" stroke-width="2.5"/>' +
+        '<path d="M72 112 C 52 142, 60 176, 72 184 C 84 176, 92 142, 72 112 Z" fill="url(#silver)"/>';
+      s += drop + '<g transform="translate(56 0)">' + drop + '</g>';
     } else if (cat === 'sets') {
-      s += '<circle cx="100" cy="150" r="34" fill="none" stroke="url(#silver)" stroke-width="10"/>' +
-        '<ellipse cx="100" cy="108" rx="16" ry="12" fill="url(#silver)"/><ellipse cx="100" cy="107" rx="10" ry="7" fill="url(#lapis)"/>' +
-        '<circle cx="48" cy="70" r="9" fill="url(#silver)"/><circle cx="152" cy="70" r="9" fill="url(#silver)"/>';
+      s += '<circle cx="100" cy="156" r="34" fill="none" stroke="url(#silver)" stroke-width="9"/>' +
+        '<ellipse cx="100" cy="114" rx="17" ry="13" fill="url(#silver)"/><ellipse cx="100" cy="113" rx="11" ry="8" fill="url(#lapis)"/>' +
+        '<circle cx="46" cy="74" r="8" fill="url(#silver)"/><circle cx="154" cy="74" r="8" fill="url(#silver)"/>';
     } else {
-      s += '<circle cx="100" cy="146" r="46" fill="none" stroke="url(#silver)" stroke-width="13"/>' +
-        '<ellipse cx="100" cy="94" rx="23" ry="18" fill="url(#silver)"/><ellipse cx="100" cy="93" rx="15" ry="11" fill="url(#lapis)"/>';
+      s += '<circle cx="100" cy="156" r="48" fill="none" stroke="#3A414B" stroke-width="14" transform="translate(0 3)"/>' +
+        '<circle cx="100" cy="153" r="48" fill="none" stroke="url(#silver)" stroke-width="12"/>' +
+        '<ellipse cx="100" cy="100" rx="25" ry="19" fill="url(#silver)"/><ellipse cx="100" cy="99" rx="17" ry="12" fill="url(#lapis)"/>' +
+        '<ellipse cx="94" cy="95" rx="5" ry="2.5" fill="#fff" fill-opacity=".45"/>';
     }
     return s + '</svg>';
   }
-  function img(p) { return p.image ? '<img src="/uploads/' + esc(p.image) + '" alt="" loading="lazy">' : art(p.category); }
+  function img(p) { return p.image ? '<img src="/uploads/' + esc(p.image) + '" alt="" loading="lazy" decoding="async">' : art(p.category); }
 
   function renderTabs() {
     var present = {};
@@ -151,18 +234,25 @@
       return '<button type="button" role="tab" class="tab' + (c === activeCat ? ' on' : '') + '" aria-selected="' + (c === activeCat) + '" data-cat="' + c + '">' +
         esc(c === 'all' ? t('all') : t('cat_' + c)) + '</button>';
     }).join('');
+    requestAnimationFrame(moveInk);
+  }
+  function renderSkeleton() {
+    var one = '<div class="skel" aria-hidden="true"><span class="arch"></span><span class="bar"></span><span class="bar sm"></span></div>';
+    gid('grid').innerHTML = new Array(9).join(one);
   }
   function renderGrid() {
+    if (!loaded) { renderSkeleton(); return; }
     var list = shop.products.filter(function (p) { return activeCat === 'all' || p.category === activeCat; });
     gid('empty').hidden = list.length > 0;
     gid('grid').innerHTML = list.map(function (p) {
       var out = p.stock <= 0;
-      return '<button type="button" class="tile' + (out ? ' out' : '') + '" data-id="' + p.id + '">' +
+      return '<button type="button" class="tile enter' + (out ? ' out' : '') + '" data-id="' + p.id + '">' +
         '<span class="arch">' + img(p) + '</span>' +
         '<span class="tile-name">' + esc(pname(p)) + '</span>' +
         '<span class="tile-price">' + esc(money(p.price_cents)) + '</span>' +
         (out ? '<span class="tile-flag">' + esc(t('soldOut')) + '</span>' : '') + '</button>';
     }).join('');
+    Array.prototype.forEach.call(gid('grid').children, reveal);
   }
 
   /* ----- product dialog ----- */
@@ -171,6 +261,7 @@
     var p = byId(openProductId);
     if (!p) return;
     gid('pdImg').innerHTML = img(p);
+    gid('pdCat').textContent = t('cat_' + p.category);
     gid('pdName').textContent = pname(p);
     gid('pdPrice').textContent = money(p.price_cents);
     gid('pdDesc').textContent = pdesc(p);
@@ -197,7 +288,7 @@
     try { localStorage.setItem('az_cart', JSON.stringify(cart)); } catch (e) { /* storage blocked */ }
     var n = cart.reduce(function (a, i) { return a + i.qty; }, 0);
     gid('cartCount').textContent = n;
-    gid('cartCount').className = 'count' + (n ? ' has' : '');
+    gid('cartCount').classList.toggle('has', n > 0);
   }
   function cartQty(id) { return cart.reduce(function (a, i) { return a + (i.id === id ? i.qty : 0); }, 0); }
   function reconcile() {
@@ -215,7 +306,12 @@
     saveCart();
   }
   function addToCart(p, size) {
-    if (p.sizes.length && !size) { var st = gid('pdStock'); st.className = 'stock err'; st.textContent = t('chooseSize'); return false; }
+    var st = gid('pdStock');
+    if (p.sizes.length && !size) {
+      st.className = 'stock err'; st.textContent = t('chooseSize');
+      if (!reduced) { void st.offsetWidth; st.classList.add('shake'); }
+      return false;
+    }
     if (cartQty(p.id) + 1 > p.stock) { toast(t('lowStock', { n: p.stock })); return false; }
     var found = null;
     cart.forEach(function (i) { if (i.id === p.id && i.size === (size || '')) found = i; });
@@ -231,7 +327,8 @@
   function renderCart() {
     var box = gid('cartView');
     if (view === 'done' && doneInfo) {
-      box.innerHTML = '<div class="done"><h3>' + esc(t('doneTitle')) + '</h3><p>' + esc(t('orderNo')) + '</p>' +
+      box.innerHTML = '<div class="done"><svg class="done-mark" viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="36" r="34"/><path d="M23 37 L32 46 L50 27"/></svg>' +
+        '<h3>' + esc(t('doneTitle')) + '</h3><p>' + esc(t('orderNo')) + '</p>' +
         '<span class="code">' + esc(doneInfo.code) + '</span><p>' + esc(t('doneText', { phone: doneInfo.phone })) + '</p></div>' +
         '<div class="stack"><button type="button" class="btn block" data-act="close">' + esc(t('keepShopping')) + '</button></div>';
       return;
@@ -254,7 +351,7 @@
         '<button type="button" class="btn ghost block" data-act="back">' + esc(t('back')) + '</button></form>';
       return;
     }
-    box.innerHTML = bannerHtml() + cart.map(function (i, idx) {
+    box.innerHTML = bannerHtml() + '<div>' + cart.map(function (i, idx) {
       var p = byId(i.id);
       return '<div class="line"><span class="arch">' + img(p) + '</span>' +
         '<div><div class="line-name">' + esc(pname(p)) + '</div>' +
@@ -262,7 +359,7 @@
         '<button type="button" class="linkish" data-act="rm" data-i="' + idx + '">' + esc(t('remove')) + '</button></div>' +
         '<div class="line-end"><div class="stepper"><button type="button" data-act="dec" data-i="' + idx + '" aria-label="' + esc(t('qtyDown')) + '">&minus;</button>' +
         '<span>' + i.qty + '</span><button type="button" data-act="inc" data-i="' + idx + '" aria-label="' + esc(t('qtyUp')) + '">+</button></div></div></div>';
-    }).join('') +
+    }).join('') + '</div>' +
       '<div class="total"><span>' + esc(t('total')) + '</span><strong>' + esc(money(cartTotal())) + '</strong></div>' +
       '<div class="stack"><button type="button" class="btn block" data-act="checkout">' + esc(t('checkout')) + '</button>' +
       '<button type="button" class="btn ghost block" data-act="close">' + esc(t('keepShopping')) + '</button></div>';
@@ -313,18 +410,44 @@
     gid('langBtn').textContent = lang === 'ar' ? 'English' : 'عربي';
     var s = shop.settings;
     var name = (lang === 'ar' && s.shop_name_ar) ? s.shop_name_ar : (s.shop_name || 'Alzahraa');
-    gid('brand').textContent = name; gid('footBrand').textContent = '© ' + name; document.title = name;
+    gid('brand').textContent = name; gid('footMark').textContent = name;
+    gid('footBrand').textContent = '© ' + name; document.title = name;
     var wa = gid('wa');
     if (s.whatsapp) { wa.hidden = false; wa.href = 'https://wa.me/' + encodeURIComponent(s.whatsapp); wa.textContent = t('whatsapp'); } else { wa.hidden = true; }
+    splitTitle(); buildMarquee();
     renderTabs(); renderGrid();
     if (gid('cart').open) renderCart();
     if (gid('pd').open) renderProduct();
   }
   function loadShop() {
     return api('GET', '/api/shop').then(function (r) {
-      shop = r; reconcile(); applyLang();
+      shop = r; loaded = true; reconcile(); applyLang();
     }).catch(function () { toast(t('err_network')); });
   }
+
+  /* ----- ambient motion: header state, hero parallax ----- */
+  var stageInner = gid('stageInner');
+  var px = 0; var py = 0; var sy = 0; var ticking = false;
+  function paint() {
+    ticking = false;
+    gid('top').classList.toggle('scrolled', window.scrollY > 24);
+    if (reduced) return;
+    var lift = Math.min(sy, 900) * 0.12;
+    stageInner.style.transform = 'translate3d(0,' + lift.toFixed(1) + 'px,0) rotateX(' + (-py * 6).toFixed(2) + 'deg) rotateY(' + (px * 8).toFixed(2) + 'deg)';
+  }
+  function schedule() { if (!ticking) { ticking = true; requestAnimationFrame(paint); } }
+  window.addEventListener('scroll', function () { sy = window.scrollY; schedule(); }, { passive: true });
+  window.addEventListener('resize', function () { requestAnimationFrame(moveInk); }, { passive: true });
+  if (finePointer && !reduced) {
+    window.addEventListener('pointermove', function (e) {
+      px = (e.clientX / window.innerWidth - 0.5); py = (e.clientY / window.innerHeight - 0.5); schedule();
+    }, { passive: true });
+  }
+  if (reduced) {
+    var svg = document.querySelector('.ring-art');
+    if (svg && svg.pauseAnimations) svg.pauseAnimations();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.rv'), reveal);
 
   /* ----- events ----- */
   gid('langBtn').addEventListener('click', function () {
@@ -336,14 +459,20 @@
     var b = e.target.closest('[data-cat]');
     if (b) { activeCat = b.getAttribute('data-cat'); renderTabs(); renderGrid(); }
   });
+  gid('tabs').addEventListener('scroll', function () { requestAnimationFrame(moveInk); }, { passive: true });
   gid('grid').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-id]');
+    var b = e.target.closest('.tile[data-id]');
     if (b) openProduct(Number(b.getAttribute('data-id')));
   });
-  gid('pdSizes').addEventListener('change', function (e) { pdSize = e.target.value; gid('pdStock').textContent = ''; });
+  gid('pdSizes').addEventListener('change', function (e) { pdSize = e.target.value; gid('pdStock').textContent = ''; gid('pdStock').className = 'stock'; });
   gid('pdAdd').addEventListener('click', function () {
     var p = byId(openProductId);
-    if (p && addToCart(p, pdSize)) gid('pd').close();
+    if (p && addToCart(p, pdSize)) {
+      var btn = gid('pdAdd');
+      var r = btn.getBoundingClientRect();
+      gid('pd').close();
+      flyToCart({ getBoundingClientRect: function () { return r; }, animate: true });
+    }
   });
   gid('pdClose').addEventListener('click', function () { gid('pd').close(); });
   gid('cartBtn').addEventListener('click', openCart);
@@ -382,7 +511,7 @@
     for (var k = 0; k < check.length; k++) {
       if (draft[check[k][0]].length < check[k][1]) { banner = t('err_' + check[k][2]); renderCart(); return; }
     }
-    if (!/^\+?[0-9\u0660-\u0669\u06F0-\u06F9][0-9\u0660-\u0669\u06F0-\u06F9 \-]{6,18}(?![\s\S])/.test(draft.phone)) { banner = t('err_invalid_phone'); renderCart(); return; }
+    if (!/^\+?[0-9٠-٩۰-۹][0-9٠-٩۰-۹ \-]{6,18}(?![\s\S])/.test(draft.phone)) { banner = t('err_invalid_phone'); renderCart(); return; }
     banner = '';
     submitOrder(form);
   });
@@ -390,4 +519,5 @@
   saveCart();
   applyLang();
   loadShop();
+  paint();
 })();
