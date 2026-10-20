@@ -1,0 +1,26 @@
+name: Photo cutouts
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/photos.txt'
+      - 'tools/cutouts.py'
+permissions:
+  contents: write
+jobs:
+  cutouts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install "rembg[cpu]" pillow
+      - run: python tools/cutouts.py
+      - name: Commit results
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add tools/out
+          git commit -m "Photo cutouts" || echo "nothing to commit"
+          git push
