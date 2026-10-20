@@ -233,6 +233,42 @@ if (getSetting('seeded') !== '1') {
   setSetting('seeded', '1');
 }
 
+/* ---------- sample photos (downloaded at image build time into ./samples) ---------- */
+const SAMPLE_DIR = process.env.SAMPLE_DIR || path.join(__dirname, 'samples');
+const SAMPLE_PHOTOS = [
+  ['Crescent Ring', 'a00000000000000000000001.jpg'],
+  ['Twisted Band Ring', 'a00000000000000000000002.jpg', 'Classic Band Ring', 'خاتم كلاسيكي', 'A smooth silver band with a clean, polished finish.', 'خاتم فضة ناعم بلمسة مصقولة وتصميم بسيط.'],
+  ['Lapis Signet Ring', 'a00000000000000000000003.jpg', 'Studded Ring', 'خاتم مرصّع', 'A silver ring set with a row of sparkling stones.', 'خاتم فضة مرصّع بصف من الأحجار اللامعة.'],
+  ['Fine Chain Necklace', 'a00000000000000000000004.jpg', 'Beaded Necklace', 'قلادة خرز فضية', 'Polished silver beads on a fine chain.', 'خرز فضي مصقول على سلسلة رفيعة.'],
+  ['Moon Pendant', 'a00000000000000000000005.jpg', 'Heart Pendant', 'قلادة قلب', 'A small heart pendant on a silver chain.', 'قلادة قلب صغيرة على سلسلة فضة.'],
+  ['Cuff Bracelet', 'a00000000000000000000006.jpg', 'Stone Bracelet', 'سوار مرصّع', 'A silver bracelet set with sparkling stones.', 'سوار فضة مرصّع بأحجار لامعة.'],
+  ['Drop Earrings', 'a00000000000000000000007.jpg'],
+  ['Stud Earrings Set', 'a00000000000000000000008.jpg', 'Silver Earrings Set', 'طقم أقراط فضة', 'A set of silver earrings in different styles.', 'مجموعة أقراط فضة بتصاميم مختلفة.']
+];
+function installSamplePhotos() {
+  if (getSetting('samples_v1') === '1' || !fs.existsSync(SAMPLE_DIR)) return;
+  let copied = 0;
+  for (const f of fs.readdirSync(SAMPLE_DIR)) {
+    if (!/^[a-f0-9]{24}\.jpg(?![\s\S])/.test(f)) continue;
+    const src = path.join(SAMPLE_DIR, f); const dst = path.join(UPLOAD_DIR, f);
+    const buf = fs.readFileSync(src);
+    if (sniffImage(buf) !== 'jpg') continue;
+    if (!fs.existsSync(dst)) fs.writeFileSync(dst, buf);
+    copied++;
+  }
+  tx(() => {
+    for (const [seed, file, name, nameAr, desc, descAr] of SAMPLE_PHOTOS) {
+      if (!fs.existsSync(path.join(UPLOAD_DIR, file))) continue;
+      const p = db.prepare("SELECT id FROM products WHERE name = ? AND image = ''").get(seed);
+      if (!p) continue;
+      if (name) db.prepare('UPDATE products SET image = ?, name = ?, name_ar = ?, description = ?, description_ar = ? WHERE id = ?').run(file, name, nameAr, desc, descAr, p.id);
+      else db.prepare('UPDATE products SET image = ? WHERE id = ?').run(file, p.id);
+    }
+  });
+  setSetting('samples_v1', '1');
+  console.log('[setup] sample photos installed: ' + copied);
+}
+
 /* ---------- orders ---------- */
 const PHONE_RE = /^\+?[0-9][0-9 \-]{6,18}(?![\s\S])/;
 function cleanOrder(b) {
@@ -498,6 +534,8 @@ async function handle(req, res) {
 
   throw new HttpError(404, 'not_found', 'Not found');
 }
+
+try { installSamplePhotos(); } catch (e) { console.error('[setup] sample photos failed', e); }
 
 const server = http.createServer((req, res) => {
   handle(req, res).catch((e) => {

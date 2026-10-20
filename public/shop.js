@@ -4,7 +4,10 @@
   var T = {
     en: {
       skip: 'Skip to the collection', cart: 'Cart', close: 'Close', all: 'All',
-      eyebrow: 'Fine silver jewelry',
+      eyebrow: 'Zahra Gallery · Karbala',
+      galEyebrow: 'Zahra Gallery', galTitle: 'Visit our gallery in Karbala',
+      galText: 'See the pieces in person, try ring sizes, and ask us anything. Or follow new arrivals on Instagram.',
+      galMap: 'Get directions',
       heroTitle: 'Silver rings, made to be worn every day.',
       heroSub: "Order online and we'll call you to confirm and arrange delivery.",
       heroCta: 'Browse the collection', howLink: 'How ordering works',
@@ -37,7 +40,10 @@
     },
     ar: {
       skip: 'انتقل إلى المجموعة', cart: 'السلة', close: 'إغلاق', all: 'الكل',
-      eyebrow: 'مجوهرات فضة راقية',
+      eyebrow: 'معرض الزهراء · كربلاء',
+      galEyebrow: 'معرض الزهراء', galTitle: 'زوروا معرضنا في كربلاء',
+      galText: 'شاهد القطع عن قرب، جرّب مقاس خاتمك، واسألنا عن أي شيء. أو تابع الجديد على إنستغرام.',
+      galMap: 'الموقع على الخريطة',
       heroTitle: 'خواتم فضة، صُنعت لتُلبس كل يوم.',
       heroSub: 'اطلب أونلاين وسنتصل بك لتأكيد الطلب وترتيب التوصيل.',
       heroCta: 'تصفح المجموعة', howLink: 'كيف تطلب',
@@ -202,7 +208,7 @@
     if (cat === 'necklaces') {
       s += '<path d="M40 60 C 60 182, 140 182, 160 60" fill="none" stroke="url(#silver)" stroke-width="3.5" stroke-linecap="round"/>' +
         '<path d="M100 154 L100 160" stroke="url(#silver)" stroke-width="3"/>' +
-        '<path d="M100 160 C 86 170, 88 190, 100 198 C 112 190, 114 170, 100 160 Z" fill="url(#silver)"/><circle cx="100" cy="182" r="6" fill="url(#lapis)"/>';
+        '<path d="M100 160 C 86 170, 88 190, 100 198 C 112 190, 114 170, 100 160 Z" fill="url(#silver)"/><circle cx="100" cy="182" r="6" fill="url(#stone)"/>';
     } else if (cat === 'bracelets') {
       s += '<ellipse cx="100" cy="146" rx="64" ry="34" fill="none" stroke="#3A414B" stroke-width="14" transform="translate(0 4)"/>' +
         '<ellipse cx="100" cy="142" rx="64" ry="34" fill="none" stroke="url(#silver)" stroke-width="12"/>' +
@@ -213,12 +219,12 @@
       s += drop + '<g transform="translate(56 0)">' + drop + '</g>';
     } else if (cat === 'sets') {
       s += '<circle cx="100" cy="156" r="34" fill="none" stroke="url(#silver)" stroke-width="9"/>' +
-        '<ellipse cx="100" cy="114" rx="17" ry="13" fill="url(#silver)"/><ellipse cx="100" cy="113" rx="11" ry="8" fill="url(#lapis)"/>' +
+        '<ellipse cx="100" cy="114" rx="17" ry="13" fill="url(#silver)"/><ellipse cx="100" cy="113" rx="11" ry="8" fill="url(#stone)"/>' +
         '<circle cx="46" cy="74" r="8" fill="url(#silver)"/><circle cx="154" cy="74" r="8" fill="url(#silver)"/>';
     } else {
       s += '<circle cx="100" cy="156" r="48" fill="none" stroke="#3A414B" stroke-width="14" transform="translate(0 3)"/>' +
         '<circle cx="100" cy="153" r="48" fill="none" stroke="url(#silver)" stroke-width="12"/>' +
-        '<ellipse cx="100" cy="100" rx="25" ry="19" fill="url(#silver)"/><ellipse cx="100" cy="99" rx="17" ry="12" fill="url(#lapis)"/>' +
+        '<ellipse cx="100" cy="100" rx="25" ry="19" fill="url(#silver)"/><ellipse cx="100" cy="99" rx="17" ry="12" fill="url(#stone)"/>' +
         '<ellipse cx="94" cy="95" rx="5" ry="2.5" fill="#fff" fill-opacity=".45"/>';
     }
     return s + '</svg>';
@@ -448,6 +454,12 @@
     if (svg && svg.pauseAnimations) svg.pauseAnimations();
   }
   Array.prototype.forEach.call(document.querySelectorAll('.rv'), reveal);
+  var galImg = gid('galImg');
+  if (galImg) {
+    var galFail = function () { galImg.parentNode.classList.add('noimg'); galImg.removeAttribute('src'); };
+    galImg.addEventListener('error', galFail);
+    if (galImg.complete && galImg.naturalWidth === 0 && galImg.getAttribute('src')) galFail();
+  }
 
   /* ----- events ----- */
   gid('langBtn').addEventListener('click', function () {
@@ -511,7 +523,7 @@
     for (var k = 0; k < check.length; k++) {
       if (draft[check[k][0]].length < check[k][1]) { banner = t('err_' + check[k][2]); renderCart(); return; }
     }
-    if (!/^\+?[0-9٠-٩۰-۹][0-9٠-٩۰-۹ \-]{6,18}(?![\s\S])/.test(draft.phone)) { banner = t('err_invalid_phone'); renderCart(); return; }
+    if (!/^\+?[0-9\u0660-\u0669\u06F0-\u06F9][0-9\u0660-\u0669\u06F0-\u06F9 \-]{6,18}(?![\s\S])/.test(draft.phone)) { banner = t('err_invalid_phone'); renderCart(); return; }
     banner = '';
     submitOrder(form);
   });

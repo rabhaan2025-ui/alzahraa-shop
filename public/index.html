@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0A0C10">
+<meta name="theme-color" content="#070707">
 <title>Alzahraa</title>
-<meta name="description" content="Silver rings and jewelry. Order online and we confirm by phone.">
+<meta name="description" content="Alzahraa silver jewelry, Karbala. Order online and we confirm by phone.">
+<link rel="icon" href="/logo.webp" type="image/webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Hanken+Grotesk:wght@300;400;500;600&family=Noto+Sans+Arabic:wght@300;400;500;600&display=swap">
@@ -21,26 +22,34 @@
       <stop offset=".48" stop-color="#F1F3F6"/><stop offset=".72" stop-color="#7D8794"/>
       <stop offset="1" stop-color="#D9DEE4"/>
     </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7E3A1"/><stop offset=".3" stop-color="#C9A03A"/>
+      <stop offset=".55" stop-color="#F3D27A"/><stop offset=".8" stop-color="#9C7420"/>
+      <stop offset="1" stop-color="#E2C068"/>
+    </linearGradient>
     <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
       <stop offset="0" stop-color="#fff" stop-opacity="0"/>
       <stop offset=".45" stop-color="#fff" stop-opacity="0"/>
-      <stop offset=".5" stop-color="#fff" stop-opacity=".95"/>
+      <stop offset=".5" stop-color="#FFF6DA" stop-opacity=".95"/>
       <stop offset=".55" stop-color="#fff" stop-opacity="0"/>
       <stop offset="1" stop-color="#fff" stop-opacity="0"/>
       <animateTransform attributeName="gradientTransform" type="translate" values="-1 0; 1 0; 1 0" keyTimes="0; .45; 1" dur="5.5s" begin="1.8s" repeatCount="indefinite"/>
     </linearGradient>
-    <radialGradient id="lapis" cx=".35" cy=".3" r=".85">
-      <stop offset="0" stop-color="#8EA6E6"/><stop offset=".5" stop-color="#2B4FA6"/><stop offset="1" stop-color="#101F4D"/>
+    <radialGradient id="stone" cx=".35" cy=".3" r=".85">
+      <stop offset="0" stop-color="#FBE7A6"/><stop offset=".45" stop-color="#D19B2B"/><stop offset="1" stop-color="#5A3906"/>
     </radialGradient>
     <radialGradient id="halo" cx=".5" cy=".5" r=".5">
-      <stop offset="0" stop-color="#C9D3E6" stop-opacity=".22"/><stop offset=".6" stop-color="#6E8CDB" stop-opacity=".06"/><stop offset="1" stop-color="#6E8CDB" stop-opacity="0"/>
+      <stop offset="0" stop-color="#E9C46A" stop-opacity=".2"/><stop offset=".6" stop-color="#C9A03A" stop-opacity=".05"/><stop offset="1" stop-color="#C9A03A" stop-opacity="0"/>
     </radialGradient>
-    <symbol id="spark" viewBox="-10 -10 20 20"><path d="M0 -10 C1 -2 2 -1 10 0 C2 1 1 2 0 10 C-1 2 -2 1 -10 0 C-2 -1 -1 -2 0 -10 Z" fill="#fff"/></symbol>
+    <symbol id="spark" viewBox="-10 -10 20 20"><path d="M0 -10 C1 -2 2 -1 10 0 C2 1 1 2 0 10 C-1 2 -2 1 -10 0 C-2 -1 -1 -2 0 -10 Z" fill="#FFF3CC"/></symbol>
   </defs>
 </svg>
 
 <header class="top" id="top">
-  <a class="brand" href="/" id="brand">Alzahraa</a>
+  <a class="brand-link" href="/">
+    <img class="brand-logo" src="/logo.webp" alt="" width="44" height="44">
+    <span class="brand" id="brand">Alzahraa</span>
+  </a>
   <nav class="top-actions" aria-label="Shop">
     <button class="lang" id="langBtn" type="button">عربي</button>
     <button class="cart-btn" id="cartBtn" type="button">
@@ -53,8 +62,8 @@
 <main>
 <section class="hero" aria-labelledby="heroTitle">
   <div class="hero-copy">
-    <p class="eyebrow rise" data-i18n="eyebrow">Fine silver jewelry</p>
-    <h1 id="heroTitle" class="hero-title" data-split="heroTitle">Silver rings, made to be worn every day.</h1>
+    <p class="eyebrow rise"><span class="rule" aria-hidden="true"></span><span data-i18n="eyebrow">Zahra Gallery · Karbala</span></p>
+    <h1 id="heroTitle" class="hero-title">Silver rings, made to be worn every day.</h1>
     <p class="hero-sub rise" data-i18n="heroSub">Order online and we'll call you to confirm and arrange delivery.</p>
     <div class="hero-cta rise">
       <a class="btn" href="#shop" data-i18n="heroCta">Browse the collection</a>
@@ -66,27 +75,28 @@
     <div class="stage-inner" id="stageInner">
       <svg class="ring-art" viewBox="0 0 400 440">
         <circle cx="200" cy="250" r="190" fill="url(#halo)"/>
-        <g class="orbit o1"><ellipse cx="200" cy="250" rx="176" ry="58" fill="none" stroke="#C9CFD6" stroke-opacity=".22" stroke-width=".8"/></g>
-        <g class="orbit o2"><ellipse cx="200" cy="250" rx="150" ry="150" fill="none" stroke="#C9CFD6" stroke-opacity=".12" stroke-width=".8" stroke-dasharray="2 7"/></g>
+        <g class="orbit o1"><ellipse cx="200" cy="250" rx="176" ry="58" fill="none" stroke="#C9A03A" stroke-opacity=".4" stroke-width=".8"/></g>
+        <g class="orbit o2"><ellipse cx="200" cy="250" rx="150" ry="150" fill="none" stroke="#C9A03A" stroke-opacity=".28" stroke-width="1" stroke-dasharray="1.5 8" stroke-linecap="round"/></g>
         <g class="dust">
           <circle class="d d1" cx="70" cy="140" r="1.4"/><circle class="d d2" cx="330" cy="120" r="1.1"/>
           <circle class="d d3" cx="350" cy="330" r="1.6"/><circle class="d d4" cx="60" cy="350" r="1.2"/>
           <circle class="d d5" cx="120" cy="70" r="1"/><circle class="d d6" cx="290" cy="400" r="1.3"/>
         </g>
-        <ellipse cx="200" cy="402" rx="96" ry="9" fill="#000" fill-opacity=".55" class="shadow"/>
+        <ellipse cx="200" cy="402" rx="96" ry="9" fill="#000" fill-opacity=".7" class="shadow"/>
         <g class="ring">
-          <circle class="band-draw" cx="200" cy="280" r="96" fill="none" stroke="#E6EAEF" stroke-width="1.2"/>
+          <circle class="band-draw" cx="200" cy="280" r="96" fill="none" stroke="#E9C46A" stroke-width="1.2"/>
           <g class="band-body">
-            <circle cx="200" cy="286" r="96" fill="none" stroke="#3A414B" stroke-opacity=".7" stroke-width="26"/>
+            <circle cx="200" cy="286" r="96" fill="none" stroke="#2A2620" stroke-opacity=".8" stroke-width="26"/>
             <circle cx="200" cy="280" r="96" fill="none" stroke="url(#silver)" stroke-width="22"/>
             <circle cx="200" cy="280" r="96" fill="none" stroke="url(#sheen)" stroke-width="22"/>
             <path d="M134 210 A96 96 0 0 1 200 184" fill="none" stroke="#fff" stroke-opacity=".8" stroke-width="2.4" stroke-linecap="round"/>
             <ellipse cx="152" cy="190" rx="14" ry="24" fill="url(#silver)" transform="rotate(-28 152 190)"/>
             <ellipse cx="248" cy="190" rx="14" ry="24" fill="url(#silver)" transform="rotate(28 248 190)"/>
             <ellipse cx="200" cy="164" rx="54" ry="40" fill="url(#silver)"/>
-            <ellipse cx="200" cy="162" rx="42" ry="29" fill="url(#lapis)"/>
-            <ellipse class="stone-glow" cx="200" cy="162" rx="42" ry="29" fill="#9DB4F0" fill-opacity=".0"/>
-            <ellipse cx="186" cy="152" rx="13" ry="6.5" fill="#fff" fill-opacity=".42" transform="rotate(-18 186 152)"/>
+            <ellipse cx="200" cy="162" rx="44" ry="31" fill="none" stroke="url(#gold)" stroke-width="2.5"/>
+            <ellipse cx="200" cy="162" rx="42" ry="29" fill="url(#stone)"/>
+            <ellipse class="stone-glow" cx="200" cy="162" rx="42" ry="29" fill="#FFE9A8" fill-opacity="0"/>
+            <ellipse cx="186" cy="152" rx="13" ry="6.5" fill="#fff" fill-opacity=".5" transform="rotate(-18 186 152)"/>
           </g>
         </g>
         <use href="#spark" class="sp s1" x="236" y="132" width="22" height="22"/>
@@ -105,6 +115,7 @@
   <div class="sec-head rv">
     <p class="eyebrow" data-i18n="collectionEyebrow">The collection</p>
     <h2 id="shopTitle" data-i18n="collectionTitle">Pieces in silver</h2>
+    <span class="flourish" aria-hidden="true"></span>
   </div>
   <div class="tabs-wrap rv">
     <div class="tabs" id="tabs" role="tablist"></div>
@@ -114,10 +125,27 @@
   <p class="empty" id="empty" hidden data-i18n="empty">Nothing in this category yet.</p>
 </section>
 
+<section class="gallery" aria-labelledby="galTitle">
+  <div class="gal-media rv">
+    <img src="/uploads/a00000000000000000000009.jpg" alt="" loading="lazy" decoding="async" id="galImg">
+    <img class="gal-seal" src="/logo-lg.webp" alt="" width="132" height="132" loading="lazy">
+  </div>
+  <div class="gal-copy rv">
+    <p class="eyebrow" data-i18n="galEyebrow">Zahra Gallery</p>
+    <h2 id="galTitle" data-i18n="galTitle">Visit our gallery in Karbala</h2>
+    <p data-i18n="galText">See the pieces in person, try ring sizes, and ask us anything. Or follow new arrivals on Instagram.</p>
+    <div class="gal-links">
+      <a class="btn" href="https://maps.app.goo.gl/u9JoKbTdjx3zCLnAA" target="_blank" rel="noopener" data-i18n="galMap">Get directions</a>
+      <a class="link-quiet" href="https://www.instagram.com/alzahraa.silvers/" target="_blank" rel="noopener">@alzahraa.silvers</a>
+    </div>
+  </div>
+</section>
+
 <section id="how" class="how" aria-labelledby="howTitle">
   <div class="sec-head rv">
     <p class="eyebrow" data-i18n="howEyebrow">Ordering</p>
     <h2 id="howTitle" data-i18n="howTitle">Three quiet steps</h2>
+    <span class="flourish" aria-hidden="true"></span>
   </div>
   <ol class="steps">
     <li class="step rv"><span class="num">I</span><h3 data-i18n="step1t">Choose</h3><p data-i18n="step1">Pick your piece and, for rings, your size.</p></li>
@@ -128,10 +156,12 @@
 </main>
 
 <footer class="foot">
+  <img class="foot-logo" src="/logo-lg.webp" alt="" width="96" height="96" loading="lazy">
   <p class="foot-mark" id="footMark">Alzahraa</p>
   <div class="foot-row">
     <span id="footBrand"></span>
     <span data-i18n="footer">Ordered online, confirmed by phone.</span>
+    <a href="https://www.instagram.com/alzahraa.silvers/" target="_blank" rel="noopener">Instagram</a>
     <a id="wa" class="wa" rel="noopener" target="_blank" hidden></a>
   </div>
 </footer>
